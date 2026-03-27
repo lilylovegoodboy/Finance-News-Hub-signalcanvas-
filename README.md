@@ -1,6 +1,7 @@
 # Finance News Hub SignalCanvas UI ✨📊🧠
 
 一个面向事件驱动投研场景的前端展示与产品壳开源项目 🚀
+完整版将会在3月31日隆重登录！
 
 这个仓库主要开放：
 
@@ -13,11 +14,14 @@
 它展示了一个围绕以下模块组织起来的工作台：
 
 - 快讯首页 📰
+<img width="1262" height="616" alt="image" src="https://github.com/user-attachments/assets/8d9931c8-85e0-49e3-9865-b6891ba0e329" />
 - 推演引擎 🔍
+<img width="1256" height="608" alt="image" src="https://github.com/user-attachments/assets/83b159c8-5e62-4775-ab27-41bb452d4fa6" />
 - 模拟人类投资 🤖
+<img width="1262" height="610" alt="image" src="https://github.com/user-attachments/assets/89306a6c-9c9a-45fc-9907-ee16e52973b9" />
 - 散户热度 🔥
+  <img width="1253" height="608" alt="image" src="https://github.com/user-attachments/assets/d128e461-53f3-431c-9954-73a42b70b635" />
 - 用户手册 📚
-
 ---
 
 ## 项目定位 🎯
@@ -133,7 +137,7 @@ screenshots/
 - 想搭建事件驱动投研工作台的人
 - 想参考“用户手册如何写”的人
 - 对 AI + 投研产品交互感兴趣的人
-
+部分开源，完全免费使用！😊
 ---
 
 ## 免责声明 ⚠️
