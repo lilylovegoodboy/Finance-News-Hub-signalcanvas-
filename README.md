@@ -1,3 +1,23 @@
+# SignalCanvas
+
+<p align="center">
+  <img src="./screenshots/logo.png" alt="SignalCanvas" width="220" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/ui-signalcanvas-4c8bf5" />
+  <img src="https://img.shields.io/badge/license-MIT-green" />
+  <img src="https://img.shields.io/badge/status-active-success" />
+  <img src="https://img.shields.io/badge/theme-dark-black" />
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/templates-6-blue" />
+  <img src="https://img.shields.io/badge/pages-simulator%20%7C%20thesis%20engine%20%7C%20retail%20heat-6c63ff" />
+  <img src="https://img.shields.io/badge/manual-included-orange" />
+  <img src="https://img.shields.io/badge/open%20source-ui%20shell-brightgreen" />
+  <img src="https://img.shields.io/github/stars/lilylovegoodboy/Finance-News-Hub-signalcanvas-" />
+</p>
+
 # Finance News Hub SignalCanvas UI ✨📊🧠
 
 一个面向事件驱动投研场景的前端展示与产品壳开源项目 🚀
