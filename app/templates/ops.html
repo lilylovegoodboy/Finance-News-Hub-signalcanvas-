@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-card glass">
+      <h1>运营面板</h1>
+      <p>展示当前网站的基础运营指标，用于观察访问趋势。</p>
+      <div class="hero-actions">
+        <span class="pill">今日访客</span>
+        <span class="pill">{{ visits[0].count if visits else 0 }}</span>
+      </div>
+    </div>
+    <div class="hero-card glass">
+      <div class="section-title">近 14 天访问</div>
+      <p class="muted">轻量版统计：以访问快讯首页作为一次访问。</p>
+    </div>
+  </section>
+
+  <section class="hero-card glass">
+    <div class="section-title">访问趋势</div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>访问数</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in visits %}
+          <tr>
+            <td>{{ row.visit_date }}</td>
+            <td>{{ row.count }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="2">暂无数据</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

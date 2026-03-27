@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block content %}
+  {% set community_heat = retail_heat.community_heat or {} %}
+  {% set community_meta = community_heat.meta or {} %}
+
+  <section class="hero-card glass retail-hero">
+    <div class="retail-hero-shell">
+      <div class="retail-hero-main">
+        <div class="section-title">散户热度</div>
+        <h1 class="title-large">{{ retail_heat.top_theme }} · 热度 {{ retail_heat.heat_score }}</h1>
+        <p>{{ retail_heat.summary }}</p>
+        <div class="hero-actions">
+          <span class="pill">当前阶段 {{ retail_heat.stage }}</span>
+          <span class="pill">热度节奏 {{ retail_heat.momentum_label }}</span>
+          <span class="pill">情绪状态 {{ retail_heat.crowding_label }}</span>
+          <span class="pill">样本 {{ retail_heat.meta.sample_count }}</span>
+          <span class="pill">窗口 {{ retail_heat.meta.lookback_hours }}h</span>
+        </div>
+        {% if retail_heat.stage_hint %}
+          <p class="muted">{{ retail_heat.stage_hint }}</p>
+        {% endif %}
+        <p class="muted">{{ retail_heat.risk_note }}</p>
+      </div>
+
+      <aside class="retail-hero-side">
+        <article class="hero-card glass retail-sentiment-gantt retail-sentiment-gantt-hero">
+          <div class="section-title">板块热情指数</div>
+          <p class="muted">用小型时间条快速看当前散户讨论更集中在哪些板块。</p>
+          <div class="retail-gantt-list">
+            {% for row in community_heat.guba_sector_board_rows[:4] or [] %}
+              <div class="retail-gantt-row">
+                <div class="retail-gantt-head">
+                  <strong>{{ row.board }}</strong>
+                  <span>{{ row.total_heat_score or row.heat_score }}</span>
+                </div>
+                <div class="retail-gantt-track">
+                  <div class="retail-gantt-fill" style="width: {{ row.bar_pct or 0 }}%;"></div>
+                </div>
+                <div class="retail-gantt-meta">
+                  <span>{{ row.comment_total }} 评论</span>
+                  <span>{{ row.delta_label or row.compare_label }}</span>
+                </div>
+              </div>
+            {% else %}
+              <p class="muted">板块热情指数还在积累中。</p>
+            {% endfor %}
+          </div>
+        </article>
+      </aside>
+    </div>
+  </section>
+
+  <section class="retail-grid retail-grid-v2">
+    <div class="retail-community-top">
+      <article class="hero-card glass retail-community-hero">
+        <div class="section-title">股吧原生观察</div>
+        <p>{{ retail_heat.community_heat.summary }}</p>
+        <div class="retail-community-stats">
+          <div class="retail-stat-card">
+            <span class="retail-stat-label">原生样本</span>
+            <strong>{{ retail_heat.community_heat.meta.guba_post_count }}</strong>
+            <span class="muted">当前以股吧帖子作为主样本</span>
+          </div>
+          <div class="retail-stat-card">
+            <span class="retail-stat-label">互动热度</span>
+            <strong>{{ retail_heat.community_heat.meta.interaction_total }}</strong>
+            <span class="muted">浏览 / 评论 / 点赞加权</span>
+          </div>
+          <div class="retail-stat-card">
+            <span class="retail-stat-label">讨论聚焦</span>
+            <strong>{{ retail_heat.community_heat.meta.lead_theme or "积累中" }}</strong>
+            <span class="muted">
+              {{ retail_heat.community_heat.meta.lead_platform }}
+              {% if retail_heat.community_heat.meta.lead_theme_post_count %}
+                · {{ retail_heat.community_heat.meta.lead_theme_post_count }} 帖
+              {% endif %}
+            </span>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="retail-left-stack">
+      <article class="hero-card glass retail-trend-card">
+        <div class="section-title">热度时间轴</div>
+        <div class="retail-trend-strip">
+          {% for point in retail_heat.trend_points %}
+            <div class="retail-trend-bar">
+              <span class="retail-trend-value">{{ point.count }}</span>
+              <div class="retail-trend-track">
+                <div class="retail-trend-fill" style="height: {{ point.bar_height or 10 }}px;"></div>
+              </div>
+              <span class="retail-trend-label">{{ point.label }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </article>
+
+      <article class="hero-card glass retail-sentiment-meter-card">
+        <div class="section-title">散户指数</div>
+        <p class="muted">把当前散户热度压缩成 1-100 的直观温度值，只做情绪观察，不直接代表买卖建议。</p>
+        <div class="retail-sentiment-meter">
+          <div class="retail-sentiment-gauge" style="--gauge-value: {{ retail_heat.heat_score or 0 }}%;">
+            <div class="retail-sentiment-gauge-inner">
+              <strong>{{ retail_heat.heat_score }}</strong>
+              <span>{{ retail_heat.stage }}</span>
+            </div>
+          </div>
+          <div class="retail-sentiment-scale">
+            <span>冷静</span>
+            <span>升温</span>
+            <span>过热</span>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <article class="hero-card glass retail-sector-board-card">
+      <div class="section-title">股吧板块总热度</div>
+      <p class="muted">按分析主题聚合股吧样本，直接看每个板块的总热度分、评论数、帖子数、24h变化和情绪标签。</p>
+      <div class="retail-sector-summary">
+        <span class="chip">板块 {{ community_meta.sector_board_count or 0 }}</span>
+        <span class="chip">评论总数 {{ community_meta.sector_comment_total or 0 }}</span>
+      </div>
+      <div class="retail-sector-list">
+        {% for row in community_heat.guba_sector_board_rows or [] %}
+          {% set sentiment = row.sentiment or {} %}
+          <article class="retail-sector-item">
+            <div class="retail-sector-head">
+              <strong>{{ row.board }}</strong>
+              <div class="retail-sector-head-tags">
+                <span class="chip">总热度 {{ row.total_heat_score or row.heat_score }}</span>
+                <span class="chip retail-tone-{{ sentiment.tone or 'neutral' }}">{{ sentiment.label or "分歧" }}</span>
+              </div>
+            </div>
+            <div class="retail-sector-meta">
+              <span>评论 {{ row.comment_total }}</span>
+              <span>帖子 {{ row.post_count }}</span>
+              <span>{{ row.delta_label or "24h 持平" }}</span>
+            </div>
+            <div class="retail-sector-bar">
+              <div class="retail-sector-bar-fill" style="width: {{ row.bar_pct or 0 }}%;"></div>
+            </div>
+            <div class="retail-sector-compare">
+              <span>{{ row.compare_label }}</span>
+              <span>均帖评论 {{ row.avg_comments }}</span>
+            </div>
+            <p class="muted">锚点股票：{{ row.tickers | join(" / ") }}</p>
+          </article>
+        {% else %}
+          <p class="muted">股吧板块热度样本还在积累中。</p>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="hero-card glass retail-community-table-card">
+      <div class="section-title">社区原生热度</div>
+      <p class="muted">先把股吧这一层做扎实，观察原生讨论是否正在向某个主题和锚点股票聚拢。</p>
+      {% if retail_heat.community_heat.theme_rows %}
+        <table class="table">
+          <thead>
+            <tr>
+              <th>主题</th>
+              <th>社区热度</th>
+              <th>样本帖数</th>
+              <th>锚点股票</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in retail_heat.community_heat.theme_rows %}
+              <tr>
+                <td>{{ row.theme }}</td>
+                <td>{{ row.score }}</td>
+                <td>{{ row.post_count }}</td>
+                <td>{{ row.tickers | join(" / ") }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">当前社区原生样本还不够多，先保留新闻映射热度作为主观察层。</p>
+      {% endif %}
+    </article>
+
+    <section class="retail-summary-grid">
+      <article class="hero-card glass retail-theme-table-card">
+        <div class="section-title">今日最热主题</div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>主题</th>
+              <th>热度</th>
+              <th>24h 增量</th>
+              <th>阶段</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in retail_heat.theme_rows %}
+              <tr>
+                <td>{{ row.theme }}</td>
+                <td>{{ row.score }}</td>
+                <td>{{ "%+d"|format(row.delta) }}</td>
+                <td>{{ row.stage }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4">暂无有效主题样本</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </article>
+
+      <article class="hero-card glass retail-keyword-card">
+        <div class="section-title">热议关键词</div>
+        <p class="muted">把散户原生讨论里最常出现的词先提出来，帮助快速判断讨论方向。</p>
+        <div class="chip-list">
+          {% for key in retail_heat.hot_keywords %}
+            <span class="chip">{{ key }}</span>
+          {% endfor %}
+        </div>
+      </article>
+    </section>
+
+    <article class="hero-card glass retail-guba-analysis">
+      <div class="section-title">股吧人气分析层</div>
+      <p class="muted">把股吧样本拆成当前热度、持续性、空窗期、回潮信号和情绪结构，更适合做人气因子观察。</p>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>主题 / 锚点</th>
+            <th>当前热度</th>
+            <th>连热天数</th>
+            <th>距上次高热</th>
+            <th>今日回潮</th>
+            <th>情绪标签</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in retail_heat.community_heat.guba_popularity_rows %}
+            <tr>
+              <td>{{ row.theme }} · {{ row.tickers | join(" / ") }}</td>
+              <td>{{ row.current_heat }}</td>
+              <td>{{ row.streak_days }}</td>
+              <td>{{ row.days_since_hot if row.days_since_hot is not none else "--" }}{% if row.days_since_hot is not none %} 天{% endif %}</td>
+              <td>{{ "是" if row.today_rebound else "否" }}</td>
+              <td><span class="chip retail-tone-{{ row.sentiment.tone }}">{{ row.sentiment.label }}</span></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6">股吧人气样本还在积累中。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </article>
+
+    <article class="hero-card glass retail-hot-posts-card">
+      <div class="section-title">社区热帖样本</div>
+      {% if retail_heat.community_heat.hot_posts %}
+        <div class="retail-post-list">
+          {% for post in retail_heat.community_heat.hot_posts %}
+            <article class="retail-post-item">
+              <div class="retail-post-head">
+                <strong>{{ post.title }}</strong>
+                <div class="retail-post-tags">
+                  <span class="chip">股吧</span>
+                  <span class="chip">{{ post.ticker }}</span>
+                  {% if post.sentiment %}
+                    <span class="chip retail-tone-{{ post.sentiment.tone }}">{{ post.sentiment.label }}</span>
+                  {% endif %}
+                </div>
+              </div>
+              {% if post.summary %}
+                <p>{{ post.summary }}</p>
+              {% endif %}
+              <div class="retail-post-meta">
+                <span>{{ post.published_at }}</span>
+                <span>浏览 {{ post.views }}</span>
+                <span>评论 {{ post.comments }}</span>
+                <span>点赞 {{ post.likes }}</span>
+                <a href="{{ post.url }}" target="_blank" rel="noopener noreferrer">打开</a>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">股吧热帖样本还在积累中，当前先保留新闻映射热度与原生热度双层观察。</p>
+      {% endif %}
+    </article>
+  </section>
+{% endblock %}

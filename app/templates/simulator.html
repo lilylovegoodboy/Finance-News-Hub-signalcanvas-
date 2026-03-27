@@ -1,0 +1,2207 @@
+{% extends "base.html" %}
+{% macro render_impact_items(impact) -%}
+  {% if impact %}
+    {% if impact.macro %}
+      <div class="sim-impact-item">
+        <span class="sim-impact-label">宏观</span>
+        <span class="sim-impact-value">{{ impact.macro }}</span>
+      </div>
+    {% endif %}
+    {% if impact.industry %}
+      <div class="sim-impact-item">
+        <span class="sim-impact-label">行业</span>
+        <span class="sim-impact-value">{{ impact.industry }}</span>
+      </div>
+    {% endif %}
+    {% if impact.assets %}
+      <div class="sim-impact-item">
+        <span class="sim-impact-label">资产</span>
+        <span class="sim-impact-value">{{ impact.assets }}</span>
+      </div>
+    {% endif %}
+  {% endif %}
+{%- endmacro %}
+{% macro compact_role_label(label) -%}
+  {%- if label == "一阶受益" -%}直接受益
+  {%- elif label == "外围观察" -%}观察
+  {%- elif label == "中军" -%}核心
+  {%- elif label == "弹性" -%}弹性
+  {%- elif label == "主线观察" -%}观察
+  {%- else -%}{{ label }}
+  {%- endif -%}
+{%- endmacro %}
+{% macro explain_role_label(label) -%}
+  {%- if label == "一阶受益" -%}直接受益
+  {%- elif label == "外围观察" -%}观察映射
+  {%- elif label == "中军" -%}承接核心
+  {%- elif label == "弹性" -%}高波动机会
+  {%- elif label == "主线观察" -%}主线观察
+  {%- else -%}{{ label }}
+  {%- endif -%}
+{%- endmacro %}
+{% macro render_candidate_card(item, rank=None, backup=False, filtered=False) -%}
+  {% set display_name = item.stock_name or (item.research_card.stock_name if item.research_card else "") or (item.fundamental_card.stock_name if item.fundamental_card else "") %}
+  <div class="candidate-pool-item{% if backup or filtered %} candidate-pool-item-backup{% endif %}">
+    <div class="candidate-pool-topline">
+      <div class="candidate-pool-main">
+        {% if rank is not none %}
+          <span class="candidate-pool-rank">#{{ rank }}</span>
+        {% endif %}
+        <span class="candidate-pool-ticker">{{ item.ticker }}</span>
+        {% if display_name %}
+          <span class="candidate-pool-name">{{ display_name }}</span>
+        {% endif %}
+        {% if item.theme %}
+          <span class="candidate-pool-theme">{{ item.theme }}</span>
+        {% endif %}
+        {% if item.reasoning_role %}
+          <span class="candidate-pool-role">{{ compact_role_label(item.reasoning_role) }}</span>
+        {% endif %}
+        {% if item.style_tags and item.style_tags.market_cap %}
+          <span class="candidate-pool-role">{{ item.style_tags.market_cap }}</span>
+        {% endif %}
+        {% if item.style_tags and item.style_tags.role %}
+          <span class="candidate-pool-role">{{ compact_role_label(item.style_tags.role) }}</span>
+        {% endif %}
+        {% if item.style_tags and item.style_tags.regime %}
+          <span class="candidate-pool-role">{{ item.style_tags.regime }}</span>
+        {% endif %}
+      </div>
+      <div class="candidate-pool-side">
+        {% if item.llm_score is not none and not filtered %}
+          <span class="candidate-pool-score">{{ item.llm_score }}</span>
+        {% endif %}
+        {% if item.priority is not none and not filtered %}
+          <span class="candidate-pool-priority">优先级 {{ item.priority }}</span>
+        {% endif %}
+        {% if item.fundamental_card and item.fundamental_card.fundamental_score is not none %}
+          <span class="candidate-pool-priority">财报分 {{ item.fundamental_card.fundamental_score }}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if item.selection_notes and item.selection_notes.why_selected %}
+      <div class="candidate-pool-summary">{{ item.selection_notes.why_selected }}</div>
+    {% elif item.llm_reason %}
+      <div class="candidate-pool-summary">{{ item.llm_reason }}</div>
+    {% elif item.matched_keywords %}
+      <div class="candidate-pool-summary">Match: {{ item.matched_keywords | join(" / ") }}</div>
+    {% endif %}
+
+    <div class="candidate-pool-detail-grid">
+      {% if item.fundamental_card and item.fundamental_card.quality %}
+        <div class="candidate-detail-card mobile-hide">
+          <div class="candidate-detail-label">基本面</div>
+          <div class="candidate-detail-value">
+            {{ item.fundamental_card.quality }}{% if item.fundamental_card.report_name %} / {{ item.fundamental_card.report_name }}{% endif %}
+          </div>
+          {% if item.fundamental_card.highlights %}
+            <div class="candidate-detail-meta">{{ item.fundamental_card.highlights[:2] | join(" · ") }}</div>
+          {% endif %}
+          {% if item.fundamental_card.metrics %}
+            <div class="candidate-detail-meta">
+              {% if item.fundamental_card.metrics.roe is not none %}ROE {{ item.fundamental_card.metrics.roe }}%{% endif %}
+              {% if item.fundamental_card.metrics.debt_ratio is not none %} · Debt {{ item.fundamental_card.metrics.debt_ratio }}%{% endif %}
+              {% if item.fundamental_card.metrics.profit_delta_pct is not none %} · NP {{ item.fundamental_card.metrics.profit_delta_pct }}%{% endif %}
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if item.research_card and (item.research_card.report_count or item.research_card.latest_title) %}
+        <div class="candidate-detail-card mobile-hide">
+          <div class="candidate-detail-label">研报</div>
+          <div class="candidate-detail-value">
+            {% if item.research_card.report_count %}{{ item.research_card.report_count }} 篇覆盖{% else %}最新覆盖{% endif %}
+            {% if item.research_card.latest_rating %} · {{ item.research_card.latest_rating }}{% endif %}
+          </div>
+          {% if item.research_card.latest_org or item.research_card.latest_title %}
+            <div class="candidate-detail-meta">
+              {% if item.research_card.latest_org %}{{ item.research_card.latest_org }}{% endif %}
+              {% if item.research_card.latest_title %}{% if item.research_card.latest_org %} · {% endif %}{{ item.research_card.latest_title }}{% endif %}
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if item.business_card and item.business_card.summary %}
+        <div class="candidate-detail-card">
+          <div class="candidate-detail-label">业务映射</div>
+          <div class="candidate-detail-value">{{ item.business_card.summary }}</div>
+          {% if item.business_card.role_note %}
+            <div class="candidate-detail-meta">{{ item.business_card.role_note }}</div>
+          {% endif %}
+          {% if item.reasoning_role or (item.style_tags and item.style_tags.role) %}
+            <div class="candidate-detail-meta">
+              角色说明：
+              {% if item.reasoning_role %}{{ explain_role_label(item.reasoning_role) }}{% endif %}
+              {% if item.style_tags and item.style_tags.role %}{% if item.reasoning_role %} / {% endif %}{{ explain_role_label(item.style_tags.role) }}{% endif %}
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if item.tradability_card and (item.tradability_card.avg_amount_20d_yi is not none or item.tradability_card.latest_turnover_pct is not none) %}
+        <div class="candidate-detail-card">
+          <div class="candidate-detail-label">可交易性</div>
+          <div class="candidate-detail-value">
+            {% if item.tradability_card.avg_amount_20d_yi is not none %}20日成交额 {{ item.tradability_card.avg_amount_20d_yi }}亿{% endif %}
+            {% if item.tradability_card.latest_turnover_pct is not none %} / 换手 {{ item.tradability_card.latest_turnover_pct }}%{% endif %}
+          </div>
+          <div class="candidate-detail-meta">
+            {% if item.tradability_card.volume_ratio_proxy is not none %}量能参考 {{ item.tradability_card.volume_ratio_proxy }}{% endif %}
+            {% if item.tradability_card.limit_up_streak %} / 连板 {{ item.tradability_card.limit_up_streak }} 天{% endif %}
+            {% if item.tradability_card.one_word_board %} / 一字板提示{% endif %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if item.chain_card and (item.chain_card.upstream or item.chain_card.midstream or item.chain_card.downstream) %}
+        <div class="candidate-detail-card">
+          <div class="candidate-detail-label">产业链映射</div>
+          <div class="candidate-detail-value">
+            {% if item.chain_card.stage == "一阶受益" %}直接受益
+            {% elif item.chain_card.stage == "主线观察" %}主线观察
+            {% else %}{{ item.chain_card.stage or "主题映射" }}
+            {% endif %}
+          </div>
+          <div class="candidate-detail-meta">
+            {% if item.chain_card.upstream %}上游 {{ item.chain_card.upstream | join(" / ") }}{% endif %}
+            {% if item.chain_card.midstream %}{% if item.chain_card.upstream %} · {% endif %}中游 {{ item.chain_card.midstream | join(" / ") }}{% endif %}
+            {% if item.chain_card.downstream %}{% if item.chain_card.upstream or item.chain_card.midstream %} · {% endif %}下游 {{ item.chain_card.downstream | join(" / ") }}{% endif %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if item.score_explain %}
+        <div class="candidate-detail-card candidate-detail-card-accent">
+          <div class="candidate-detail-label">评分拆解</div>
+          <div class="candidate-detail-meta">{{ item.score_explain }}</div>
+        </div>
+      {% endif %}
+
+      {% if item.selection_notes %}
+        <div class="candidate-detail-card candidate-detail-card-accent">
+          <div class="candidate-detail-label">入选原因</div>
+          {% if item.selection_notes.why_selected %}
+            <div class="candidate-detail-meta">为什么选它：{{ item.selection_notes.why_selected }}</div>
+          {% endif %}
+          {% if item.selection_notes.role_in_theme %}
+            <div class="candidate-detail-meta">主线角色：{{ item.selection_notes.role_in_theme }}</div>
+          {% endif %}
+          {% if item.selection_notes.why_not_others %}
+            <div class="candidate-detail-meta">为什么不是别的：{{ item.selection_notes.why_not_others }}</div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if filtered and item.fundamental_filter_reason %}
+        <div class="candidate-detail-card">
+          <div class="candidate-detail-label">当前未纳入原因</div>
+          {% if "缺失" in item.fundamental_filter_reason %}
+            <div class="candidate-detail-meta">数据暂缺，暂未纳入硬性筛选。</div>
+            <div class="candidate-detail-meta">{{ item.fundamental_filter_reason }}</div>
+          {% else %}
+            <div class="candidate-detail-meta">{{ item.fundamental_filter_reason }}</div>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{%- endmacro %}
+{% block content %}
+  <div class="page-skeleton page-skeleton-sim hidden" id="page-skeleton">
+    <div class="page-skeleton-shell">
+      <div class="page-skeleton-row">
+        <div class="page-skeleton-card page-skeleton-card-lg">
+          <div class="skeleton-line" style="width: 34%;"></div>
+          <div class="skeleton-line" style="width: 88%;"></div>
+          <div class="skeleton-line" style="width: 72%;"></div>
+          <div class="skeleton-chip-row">
+            <span class="skeleton-chip"></span>
+            <span class="skeleton-chip"></span>
+          </div>
+          <div class="page-skeleton-chart"></div>
+        </div>
+        <div class="page-skeleton-card">
+          <div class="skeleton-line" style="width: 28%;"></div>
+          <div class="skeleton-line" style="width: 92%;"></div>
+          <div class="skeleton-line" style="width: 78%;"></div>
+          <div class="skeleton-chip-row">
+            <span class="skeleton-chip"></span>
+            <span class="skeleton-chip"></span>
+            <span class="skeleton-chip"></span>
+          </div>
+        </div>
+      </div>
+      <div class="page-skeleton-card">
+        <div class="skeleton-line" style="width: 20%;"></div>
+        <div class="skeleton-line" style="width: 96%;"></div>
+        <div class="skeleton-line" style="width: 90%;"></div>
+        <div class="skeleton-line" style="width: 82%;"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function() {
+      try {
+        if (sessionStorage.getItem("next_page_skeleton") === window.location.pathname) {
+          const skeleton = document.getElementById("page-skeleton");
+          if (skeleton) skeleton.classList.remove("hidden");
+          document.body.classList.add("page-enter");
+        }
+      } catch (err) {
+        // ignore
+      }
+    })();
+  </script>
+  <button class="focus-jump-btn focus-jump-btn-floating" type="button" id="jump-to-simulations">
+    <span>快进到事件推演</span>
+    <span class="focus-jump-arrow" aria-hidden="true">↓</span>
+  </button>
+  <section class="hero" data-progress-step="intro">
+    <div class="hero-card glass reveal parallax-card hero-floating hero-primary">
+      <h1>消息驱动模拟投资</h1>
+      {% if is_admin %}
+      <div class="chip-list">
+        <span class="chip">管理员模式已开启</span>
+        <form method="post" action="/admin/logout" style="display:inline;">
+          <button class="chip chip-btn" type="submit">退出管理员模式</button>
+        </form>
+      </div>
+      {% endif %}
+      <p class="hero-desc">这是我们的特色栏目：为对抗量化同质化，我们采用阶段性消息推演与持股节奏。通过大局推演与发酵周期模拟，判断事件演化路径，并据此联动国内外选股。</p>
+      <p class="muted">数据参考范围包含：快讯/宏观新闻、世界事件市场，以及概率市场信号。</p>
+      <div class="hero-actions hero-actions-optional">
+        <button class="ghost" type="button" id="open-sim-detail">查看更多</button>
+      </div>
+      <div class="hero-actions">
+        <span class="pill">模拟周期 {{ days }} 天</span>
+        <span class="pill">初始资金 ¥{{ initial_cash }}</span>
+      </div>
+      <div class="sim-mini-trends">
+        <div class="mini-trend-card">
+          <div class="mini-trend-head">
+            <span class="mini-trend-title">主题强度趋势</span>
+            <span class="mini-trend-meta">近 7 天</span>
+          </div>
+          {% if theme_trend.series %}
+            <div class="mini-trend-stack">
+              {% for line in theme_trend.series %}
+                <div class="mini-trend-line">
+                  <div class="mini-trend-line-head">
+                    <span>{{ line.name }}</span>
+                    <span>{{ line.latest | round(0) }}</span>
+                  </div>
+                  <svg viewBox="0 0 320 92" class="mini-trend-svg" aria-hidden="true">
+                    <polyline fill="none" stroke-width="3" points="{{ line.points }}"></polyline>
+                  </svg>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="mini-trend-empty">等待主题记忆积累</div>
+          {% endif %}
+        </div>
+        <div class="mini-trend-card">
+          <div class="mini-trend-head">
+            <span class="mini-trend-title">门控 / 发酵趋势</span>
+            <span class="mini-trend-meta">近 7 次</span>
+          </div>
+          {% if gate_trend.gate_points %}
+            <div class="mini-trend-overlay">
+              <div class="mini-trend-legend">
+                <span class="legend-chip gate">门控 {{ gate_trend.gate_latest | round(1) if gate_trend.gate_latest is not none else "--" }}</span>
+                <span class="legend-chip ferment">发酵 {{ gate_trend.ferment_latest | round(0) if gate_trend.ferment_latest is not none else "--" }}天</span>
+              </div>
+              <svg viewBox="0 0 320 92" class="mini-trend-svg dual" aria-hidden="true">
+                <polyline class="trend-gate" fill="none" stroke-width="3" points="{{ gate_trend.gate_points }}"></polyline>
+                <polyline class="trend-ferment" fill="none" stroke-width="2.5" points="{{ gate_trend.ferment_points }}"></polyline>
+              </svg>
+            </div>
+          {% else %}
+            <div class="mini-trend-empty">等待选股样本积累</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="hero-card glass reveal parallax-card hero-floating hero-secondary" id="market-panel">
+      <div class="section-title title-anim">周期策略动作</div>
+      <p class="muted">按消息发酵周期与门控强度决定是否出手，并生成本期 A 股优先观察/配置标的。</p>
+      <div class="sim-disclaimer">仅供娱乐与策略研究参考，不构成任何投资建议。</div>
+      <div class="decision-hero-card tone-{{ 'trade' if trade_action == 'trade' else ('probe' if trade_action == 'probe' else ('observe' if trade_action == 'observe' else 'wait')) }}">
+        <div class="decision-hero-head">
+          <div>
+            <div class="decision-hero-kicker">本期结论</div>
+            <div class="decision-hero-title">
+              {% if trade_action == "trade" %}
+                可以出手，但按纪律分批执行
+              {% elif trade_action == "probe" %}
+                可以先试错出手，确认主线后再决定是否加仓
+              {% elif trade_action == "observe" %}
+                暂不急于交易，先观察主线是否继续确认
+              {% else %}
+                暂无明确动作，等待下一轮确认
+              {% endif %}
+            </div>
+          </div>
+          <div class="decision-hero-badge">
+            {% if trade_action == "trade" %}
+              出手
+            {% elif trade_action == "probe" %}
+              试错出手
+            {% elif trade_action == "observe" %}
+              观察
+            {% else %}
+              等待
+            {% endif %}
+          </div>
+        </div>
+        <div class="decision-hero-copy">
+          {% if trade_action == "trade" %}
+            当前事件强度、链路清晰度与市场确认度达到门槛，系统倾向执行，但仍以仓位纪律和退出条件为先。
+          {% elif trade_action == "probe" %}
+            当前事件与链路已经足够强，但市场确认还在跟进途中。我们先用小仓验证判断，再根据后续确认度决定是否切换到正式出手。
+          {% elif trade_action == "observe" %}
+            当前更重要的是保护判断质量，而不是勉强交易。我们先观察多源确认、市场反馈与风险因子是否继续改善。
+          {% else %}
+            当下没有足够清晰的胜率优势，保持耐心比仓促行动更重要。
+          {% endif %}
+        </div>
+        {% set standard_window_days = early_unlock_card.standard_window_days if early_unlock_card and early_unlock_card.standard_window_days else 14 %}
+        {% set window_remaining_days = early_unlock_card.remaining_days if early_unlock_card and early_unlock_card.remaining_days is not none else standard_window_days %}
+        <div class="chip-list">
+          <span class="chip">建议仓位 {% if position_pct is not none %}{{ (position_pct * 100) | round(0) }}%{% else %}--{% endif %}</span>
+          <span class="chip">预计持有 {% if hold_days %}{{ hold_days }} 天{% else %}--{% endif %}</span>
+          {% if entry_style and entry_style.label %}<span class="chip">买点类型 {{ entry_style.label }}</span>{% endif %}
+          {% if position_layer and position_layer.label %}<span class="chip">仓位层 {{ position_layer.label }}</span>{% endif %}
+          <span class="chip">标准周期 {{ standard_window_days }} 天</span>
+          <span class="chip">窗口剩余 {{ window_remaining_days }} 天</span>
+          {% if theme_horizon_card and theme_horizon_card.strategic_lead_theme %}
+          <span class="chip">中期主线 {{ theme_horizon_card.strategic_lead_theme }}</span>
+          {% endif %}
+          <span class="chip">提前解锁 {% if early_unlock_card and early_unlock_card.triggered %}已触发{% else %}已开启{% endif %}</span>
+          <span class="chip">多源确认 {{ simulation_source_evidence.confirmation }}</span>
+        </div>
+        {% if pick_skip_reasons %}
+          <div class="sim-taglist">
+            {% for reason in pick_skip_reasons %}
+              <span class="sim-tag">{{ reason }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+      {% if trade_action != "trade" and observation_watch_signals %}
+      <div class="watch-signals-card">
+        <div class="watch-signals-head">
+          <div class="watch-signals-title">下一步看什么信号才转为出手</div>
+          <div class="watch-signals-sub">把观察状态变成可执行的等待清单</div>
+        </div>
+        <div class="watch-signals-list">
+          {% for signal in observation_watch_signals %}
+            <div class="watch-signal-item">
+              <span class="watch-signal-dot"></span>
+              <span>{{ signal }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      <div class="strategy-picks-card">
+        <div class="strategy-picks-head">
+          <div class="strategy-picks-title">
+            {% if trade_action == "trade" %}
+              本期出手标的
+            {% elif trade_action == "probe" %}
+              本期试错标的
+            {% elif trade_action == "observe" %}
+              本期重点观察
+            {% else %}
+              本期策略标的
+            {% endif %}
+          </div>
+          <div class="strategy-picks-date">
+            {% if pick_date %}
+              测试开始 {{ pick_date }}{% if next_pick %} · 下次窗口 {{ next_pick }}{% endif %}{% if window_remaining_days is not none %} · 剩余 {{ window_remaining_days }} 天{% endif %}
+            {% else %}
+              等待生成
+            {% endif %}
+          </div>
+        </div>
+        <div class="strategy-picks-grid">
+          {% for s in picks %}
+            <span class="strategy-pick-chip">{{ s }}</span>
+          {% else %}
+            <span class="strategy-pick-chip muted">暂无标的</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% if early_unlock_card and early_unlock_card.standard_window_days %}
+      <div class="section-title title-anim">提前解锁</div>
+      <div class="muted pick-meta">
+        标准窗口 {{ early_unlock_card.standard_window_days }} 天
+        ｜当前 {% if early_unlock_card.triggered %}已触发{% else %}未触发{% endif %}
+        ｜解锁分 {{ early_unlock_card.unlock_score }}
+        / {{ early_unlock_card.threshold }}
+        {% if early_unlock_card.days_since_last_pick is not none %}｜距上次 {{ early_unlock_card.days_since_last_pick }} 天{% endif %}
+      </div>
+      <div class="muted pick-meta">{{ early_unlock_card.reason }}</div>
+      <div class="sim-taglist">
+        <span class="sim-tag">事件 {{ early_unlock_card.event_strength }}</span>
+        <span class="sim-tag">主线竞争 {{ early_unlock_card.competition_gap }}</span>
+        <span class="sim-tag">方向清晰 {{ early_unlock_card.direction_clarity }}%</span>
+        <span class="sim-tag">映射集中 {{ early_unlock_card.mapping_concentration }}%</span>
+        <span class="sim-tag">风险 {{ early_unlock_card.risk_penalty }}</span>
+      </div>
+      {% if early_unlock_card.blockers %}
+      <div class="sim-taglist">
+        {% for reason in early_unlock_card.blockers[:4] %}
+          <span class="sim-tag">{{ reason }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endif %}
+      <div class="strategy-meta-grid mobile-secondary-block">
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">本期动作</div>
+          <div class="strategy-meta-value">
+            {% if trade_action == "trade" %}
+              出手
+            {% elif trade_action == "probe" %}
+              试错出手
+            {% elif trade_action == "observe" %}
+              观察
+            {% else %}
+              等待生成
+            {% endif %}
+          </div>
+          <div class="strategy-meta-sub">
+            {% if position_pct is not none %}建议仓位 {{ (position_pct * 100) | round(0) }}%{% else %}等待生成{% endif %}
+          </div>
+        </div>
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">买点类型</div>
+          <div class="strategy-meta-value">{% if entry_style and entry_style.label %}{{ entry_style.label }}{% else %}等待确认{% endif %}</div>
+          <div class="strategy-meta-sub">
+            {% if entry_style and entry_style.summary %}
+              {{ entry_style.summary }}
+            {% else %}
+              当前更适合继续观察，不急着把观察误判成买点
+            {% endif %}
+          </div>
+        </div>
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">预计持有</div>
+          <div class="strategy-meta-value">{% if hold_days %}{{ hold_days }} 天{% else %}--{% endif %}</div>
+          <div class="strategy-meta-sub">
+            {% if hold_management_card and hold_management_card.summary %}
+              {{ hold_management_card.summary }}
+            {% elif hold_feedback %}
+              基线 {{ hold_feedback["base_hold_days"] }} 天 · 胜率 {{ hold_feedback["review_win_rate"] }}%
+            {% else %}
+              等待复盘样本
+            {% endif %}
+          </div>
+        </div>
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">调仓机制</div>
+          <div class="strategy-meta-value">{{ standard_window_days }} 天</div>
+          <div class="strategy-meta-sub">
+            {% if early_unlock_card and early_unlock_card.triggered %}
+              重大事件已触发提前解锁
+            {% elif early_unlock_card %}
+              提前解锁已开启 · 当前未触发
+            {% else %}
+              标准窗口运行中
+            {% endif %}
+          </div>
+        </div>
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">测试窗口</div>
+          <div class="strategy-meta-value">{% if pick_date %}{{ pick_date }}{% else %}等待生成{% endif %}</div>
+          <div class="strategy-meta-sub">
+            {% if next_pick %}
+              剩余 {{ window_remaining_days }} 天 · 下次窗口 {{ next_pick }}
+            {% else %}
+              等待下一次调仓窗口
+            {% endif %}
+          </div>
+        </div>
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">动态持仓</div>
+          <div class="strategy-meta-value">{% if hold_management_card and hold_management_card.mode_label %}{{ hold_management_card.mode_label }}{% else %}等待生成{% endif %}</div>
+          <div class="strategy-meta-sub">
+            {% if hold_management_card and hold_management_card.review_after_days %}
+              中途复核 {{ hold_management_card.review_after_days }} 天 · 止损 {{ hold_management_card.stop_loss_pct }}% · 止盈 {{ hold_management_card.take_profit_pct }}%
+            {% else %}
+              当前仍以观察为主
+            {% endif %}
+          </div>
+        </div>
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">仓位层级</div>
+          <div class="strategy-meta-value">{% if position_layer and position_layer.label %}{{ position_layer.label }}{% else %}观察仓{% endif %}</div>
+          <div class="strategy-meta-sub">
+            {% if position_layer and position_layer.summary %}
+              {{ position_layer.summary }}
+            {% else %}
+              当前不启动执行型仓位，以跟踪和等待为主
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% if pick_gate %}
+      <div class="muted pick-meta">
+        门控评分：{{ pick_gate.score }} / {{ pick_gate.threshold }}
+        {% if pick_gate.base_score is not none %}（规则底分 {{ pick_gate.base_score }}）{% endif %}
+        ｜事件 {{ pick_gate.event_strength }}
+        ｜链路 {{ pick_gate.industry_clarity }}
+        ｜市场 {{ pick_gate.market_confirmation }}
+        ｜风险惩罚 {{ pick_gate.risk_penalty }}
+      </div>
+      {% if pick_gate.ml_prob is not none %}
+      <div class="muted pick-meta">
+        ML胜率概率：{{ (pick_gate.ml_prob * 100) | round(2) }}%
+        {% if pick_gate.ml_quality is not none %}｜模型质量：{{ (pick_gate.ml_quality * 100) | round(1) }}%{% endif %}
+        {% if pick_gate.ml_samples is not none %}｜样本数：{{ pick_gate.ml_samples }}{% endif %}
+      </div>
+      {% endif %}
+      {% endif %}
+      {% if market_confirmation_card and market_confirmation_card.rows %}
+      <div class="section-title title-anim">市场确认拆解</div>
+      <div class="muted pick-meta">{{ market_confirmation_card.summary }}</div>
+      <div class="strategy-meta-grid">
+        {% for row in market_confirmation_card.rows %}
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">{{ row.label }}</div>
+          <div class="strategy-meta-value">{{ row.score }}</div>
+          <div class="strategy-meta-sub">{{ row.detail }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if execution_path_card and execution_path_card.stage_rows %}
+      <div class="section-title title-anim">执行路径</div>
+      <div class="muted pick-meta">{{ execution_path_card.summary }}</div>
+      {% if execution_path_card.entry_style or execution_path_card.position_layer %}
+      <div class="strategy-meta-grid">
+        {% if execution_path_card.entry_style %}
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">当前买点</div>
+          <div class="strategy-meta-value">{{ execution_path_card.entry_style.label }}</div>
+          <div class="strategy-meta-sub">{{ execution_path_card.entry_style.summary }}</div>
+        </div>
+        {% endif %}
+        {% if execution_path_card.position_layer %}
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">仓位管理</div>
+          <div class="strategy-meta-value">{{ execution_path_card.position_layer.label }}</div>
+          <div class="strategy-meta-sub">{{ execution_path_card.position_layer.summary }}</div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+      <div class="strategy-meta-grid">
+        {% for row in execution_path_card.stage_rows %}
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">{{ row.label }}</div>
+          <div class="strategy-meta-value">
+            {% if row.status == "done" %}已通过{% elif row.status == "current" %}当前阶段{% elif row.status == "ready" %}可升级{% else %}待满足{% endif %}
+          </div>
+          <div class="strategy-meta-sub">{{ row.detail }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% if execution_path_card.add_signals %}
+      <div class="sim-taglist">
+        {% for signal in execution_path_card.add_signals %}
+          <span class="sim-tag">{{ signal }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if execution_path_card.promote_signals %}
+      <div class="sim-taglist">
+        {% for signal in execution_path_card.promote_signals %}
+          <span class="sim-tag">{{ signal }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if execution_path_card.reduce_signals %}
+      <div class="sim-taglist">
+        {% for signal in execution_path_card.reduce_signals %}
+          <span class="sim-tag">{{ signal }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endif %}
+      {% if exit_review_card and exit_review_card.rows %}
+      <div class="section-title title-anim">退出 / 复盘闭环</div>
+      <div class="muted pick-meta">{{ exit_review_card.stage }}｜{{ exit_review_card.confidence_label }}{% if exit_review_card.mode_label %}｜{{ exit_review_card.mode_label }}{% endif %}{% if exit_review_card.entry_style_label %}｜{{ exit_review_card.entry_style_label }}{% endif %}{% if exit_review_card.position_layer_label %}｜{{ exit_review_card.position_layer_label }}{% endif %}</div>
+      <div class="strategy-meta-grid">
+        {% for row in exit_review_card.rows %}
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">{{ row.label }}</div>
+          <div class="strategy-meta-value">{{ row.value }}</div>
+          <div class="strategy-meta-sub">{% if loop.first %}当前仓位 {{ exit_review_card.position_pct }}%{% elif loop.index == 2 %}到点必须复核，不再被动持有{% else %}按纪律执行{% endif %}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% if exit_review_card.review_checks %}
+      <div class="sim-taglist">
+        {% for rule in exit_review_card.review_checks %}
+          <span class="sim-tag">{{ rule }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if exit_review_card.exit_rules %}
+      <div class="sim-taglist">
+        {% for rule in exit_review_card.exit_rules %}
+          <span class="sim-tag">{{ rule }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if exit_review_card.exit_buckets %}
+      <div class="strategy-meta-grid">
+        {% for bucket in exit_review_card.exit_buckets %}
+        <div class="strategy-meta-card">
+          <div class="strategy-meta-label">{{ bucket.label }}</div>
+          <div class="strategy-meta-sub">{{ bucket.detail }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endif %}
+      {% if polymarket_signal %}
+      <div class="muted pick-meta">
+        概率市场信号：样本 {{ polymarket_signal.count or 0 }}
+        {% if polymarket_signal.avg_prob is not none %}｜加权概率 {{ (polymarket_signal.avg_prob * 100) | round(1) }}%{% endif %}
+        {% if polymarket_signal.avg_delta is not none %}｜24h变化 {{ (polymarket_signal.avg_delta * 100) | round(2) }}%{% endif %}
+      </div>
+      {% if polymarket_signal.event_signal and polymarket_signal.event_signal.label %}
+      <div class="muted pick-meta">
+        概率市场事件：{{ polymarket_signal.event_signal.label }}
+        {% if polymarket_signal.event_signal.a_share_mapping and polymarket_signal.event_signal.a_share_mapping.theme_label %}｜A股映射：{{ polymarket_signal.event_signal.a_share_mapping.theme_label }}{% endif %}
+      </div>
+      {% if polymarket_signal.event_signal.tenor_factor %}
+      <div class="muted pick-meta">
+        跨期限概率抬升：{{ polymarket_signal.event_signal.tenor_factor.tenor_label or polymarket_signal.event_signal.tenor_factor.tenor_regime }}
+        {% if polymarket_signal.event_signal.tenor_factor.tenor_lift_score is not none %}｜评分 {{ polymarket_signal.event_signal.tenor_factor.tenor_lift_score }}{% endif %}
+        {% if polymarket_signal.event_signal.tenor_factor.explanation %}｜{{ polymarket_signal.event_signal.tenor_factor.explanation }}{% endif %}
+      </div>
+      {% endif %}
+      {% if polymarket_signal.event_signal.a_share_mapping %}
+      <div class="sim-taglist">
+        {% for ticker in polymarket_signal.event_signal.a_share_mapping.tickers or [] %}
+          <span class="sim-tag">{{ ticker }}</span>
+        {% endfor %}
+        {% if polymarket_signal.event_signal.a_share_mapping.note %}
+          <span class="sim-tag">{{ polymarket_signal.event_signal.a_share_mapping.note }}</span>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endif %}
+      {% if polymarket_signal.top_questions %}
+      <div class="sim-taglist">
+        {% for q in polymarket_signal.top_questions %}
+          <span class="sim-tag">{{ q }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endif %}
+      {% if conflict_signal %}
+      <div class="muted pick-meta">
+        事件冲突因子：{{ (conflict_signal.score * 100) | round(2) if conflict_signal.score is not none else 0 }}%
+        {% if conflict_signal.sample %}｜样本 {{ conflict_signal.sample }}{% endif %}
+      </div>
+      {% endif %}
+      {% if regime %}
+      <div class="section-title title-anim">市场状态</div>
+      <div class="strategy-signal-panel">
+        <div class="strategy-signal-eyebrow">AGI Strategy Lens</div>
+        <div class="strategy-signal-main">
+          <span class="strategy-signal-badge">{{ regime }}</span>
+          {% if regime_note %}<span class="strategy-signal-note">{{ regime_note }}</span>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+      {% if propagation_layer and propagation_layer.core_theme %}
+      <div class="section-title title-anim">主线传播层</div>
+      <div class="allocation-strip propagation-strip">
+        <div class="allocation-card propagation-card is-core">
+          <div class="allocation-card-head">
+            <span class="allocation-ticker">核心主线</span>
+            <span class="allocation-weight">{{ propagation_layer.core_theme }}</span>
+          </div>
+          <div class="allocation-card-sub">
+            <span class="allocation-chip">阶段 {{ propagation_layer.stage or "unknown" }}</span>
+            <span class="allocation-chip">分数 {{ propagation_layer.propagation_score or 0 }}</span>
+          </div>
+        </div>
+        {% if propagation_layer.adjacent_themes %}
+        <div class="allocation-card propagation-card is-adjacent">
+          <div class="allocation-card-head">
+            <span class="allocation-ticker">扩散方向</span>
+            <span class="allocation-weight">{{ propagation_layer.adjacent_themes | length }}</span>
+          </div>
+          <div class="allocation-card-sub">
+            {% for theme in propagation_layer.adjacent_themes %}
+              <span class="allocation-chip">{{ theme }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% if propagation_layer.note %}
+      <div class="muted pick-meta">{{ propagation_layer.note }}</div>
+      {% endif %}
+      {% endif %}
+      {% if theme_competition_card and theme_competition_card.lead_theme %}
+      <div class="section-title title-anim">主线竞争判断</div>
+      <div class="allocation-strip propagation-strip">
+        <div class="allocation-card propagation-card is-core">
+          <div class="allocation-card-head">
+            <span class="allocation-ticker">当前胜出主线</span>
+            <span class="allocation-weight">{{ theme_competition_card.lead_theme }}</span>
+          </div>
+          <div class="allocation-card-sub">
+            <span class="allocation-chip">差值 {{ theme_competition_card.competition_gap or 0 }}</span>
+            {% if theme_competition_card.future_driver %}
+              <span class="allocation-chip">{{ theme_competition_card.future_driver }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% if theme_competition_card.secondary_theme %}
+        <div class="allocation-card propagation-card is-adjacent">
+          <div class="allocation-card-head">
+            <span class="allocation-ticker">次主线</span>
+            <span class="allocation-weight">{{ theme_competition_card.secondary_theme }}</span>
+          </div>
+          <div class="allocation-card-sub">
+            {% for label in theme_competition_card.challenger_labels or [] %}
+              <span class="allocation-chip">{{ label }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% if theme_competition_card.summary %}
+      <div class="muted pick-meta">{{ theme_competition_card.summary }}</div>
+      {% endif %}
+      {% if theme_horizon_card and theme_horizon_card.summary %}
+      <div class="muted pick-meta">双主线结构：{{ theme_horizon_card.summary }}</div>
+      {% endif %}
+      {% if theme_competition_card.winner_reason %}
+      <div class="muted pick-meta">主线胜出原因：{{ theme_competition_card.winner_reason }}</div>
+      {% endif %}
+      {% if theme_competition_card.runner_reason %}
+      <div class="muted pick-meta">次主线落败原因：{{ theme_competition_card.runner_reason }}</div>
+      {% endif %}
+      {% if theme_horizon_card and theme_horizon_card.strategic_reason %}
+      <div class="muted pick-meta">中期主线原因：{{ theme_horizon_card.strategic_reason }}</div>
+      {% endif %}
+      {% if theme_competition_card.decisive_event_title %}
+      <div class="muted pick-meta">
+        决胜新闻：{{ theme_competition_card.decisive_event_title }}
+        {% if theme_competition_card.decisive_event_source %}· {{ theme_competition_card.decisive_event_source }}{% endif %}
+      </div>
+      {% endif %}
+      {% if event_cluster_card and event_cluster_card.summary %}
+      <div class="muted pick-meta">事件聚类：{{ event_cluster_card.summary }}</div>
+      {% endif %}
+      {% if crowding_card and crowding_card.summary %}
+      <div class="muted pick-meta">
+        市场拥挤度：{{ crowding_card.summary }}
+        {% if crowding_card.reason %}· {{ crowding_card.reason }}{% endif %}
+      </div>
+      {% endif %}
+      {% if regime_shift_watch and regime_shift_watch.summary %}
+      <div class="muted pick-meta">
+        情景切换：{{ regime_shift_watch.summary }}
+        {% if regime_shift_watch.reasons %}· {{ regime_shift_watch.reasons | join(" / ") }}{% endif %}
+      </div>
+      {% endif %}
+      {% endif %}
+            {% if adaptive_learning_memory and adaptive_learning_memory.bonus_scales %}
+      <div class="section-title title-anim">自学习微调</div>
+      <div class="allocation-strip propagation-strip">
+        <div class="allocation-card propagation-card is-core">
+          <div class="allocation-card-head">
+            <span class="allocation-ticker">权重缩放</span>
+            <span class="allocation-weight">样本 {{ adaptive_learning_memory.sample_count or 0 }}</span>
+          </div>
+          <div class="allocation-card-sub">
+            <span class="allocation-chip">研报 x{{ adaptive_learning_memory.bonus_scales.research or 1 }}</span>
+            <span class="allocation-chip">链路 x{{ adaptive_learning_memory.bonus_scales.chain or 1 }}</span>
+            <span class="allocation-chip">方向 x{{ adaptive_learning_memory.bonus_scales.direction or 1 }}</span>
+            <span class="allocation-chip">主线竞争 x{{ adaptive_learning_memory.bonus_scales.competition or 1 }}</span>
+          </div>
+        </div>
+        {% if adaptive_learning_memory.direction_rows %}
+        {% set row = adaptive_learning_memory.direction_rows[0] %}
+        <div class="allocation-card propagation-card is-adjacent">
+          <div class="allocation-card-head">
+            <span class="allocation-ticker">方向记忆</span>
+            <span class="allocation-weight">{{ row.label }}</span>
+          </div>
+          <div class="allocation-card-sub">
+            <span class="allocation-chip">胜率 {{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</span>
+            <span class="allocation-chip">样本 {{ row.count }}</span>
+            {% if row.penalty_bias %}
+              <span class="allocation-chip">惩罚 {{ row.penalty_bias }}</span>
+            {% elif row.reward_bias %}
+              <span class="allocation-chip">奖励 {{ row.reward_bias }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+        {% if adaptive_learning_memory.competition_rows %}
+        {% set row = adaptive_learning_memory.competition_rows[0] %}
+        <div class="allocation-card propagation-card is-adjacent">
+          <div class="allocation-card-head">
+            <span class="allocation-ticker">主线记忆</span>
+            <span class="allocation-weight">{{ row.label }}</span>
+          </div>
+          <div class="allocation-card-sub">
+            <span class="allocation-chip">胜率 {{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</span>
+            <span class="allocation-chip">样本 {{ row.count }}</span>
+            {% if row.penalty_bias %}
+              <span class="allocation-chip">惩罚 {{ row.penalty_bias }}</span>
+            {% elif row.reward_bias %}
+              <span class="allocation-chip">奖励 {{ row.reward_bias }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% if adaptive_learning_memory.notes %}
+      <div class="muted pick-meta">{{ adaptive_learning_memory.notes | join('；') }}</div>
+      {% endif %}
+      {% if adaptive_learning_memory.misjudgment_rows %}
+      {% set mis = adaptive_learning_memory.misjudgment_rows[0] %}
+      <div class="muted pick-meta">误判提示：{{ mis.kind }} / {{ mis.label }} / 胜率 {{ "%.1f"|format(mis.win_rate) if mis.win_rate is not none else "--" }}{% if mis.win_rate is not none %}%{% endif %} / {{ mis.note }}</div>
+      {% endif %}
+      {% endif %}
+      {% if event_reasoning_layer and event_reasoning_layer.constraint_node %}
+      <div class="section-title title-anim">事件推理层</div>
+      <div class="allocation-strip propagation-strip">
+        <div class="allocation-card propagation-card is-core">
+          <div class="allocation-card-head">
+            <span class="allocation-ticker">当前瓶颈</span>
+            <span class="allocation-weight">{{ event_reasoning_layer.constraint_node }}</span>
+          </div>
+          <div class="allocation-card-sub">
+            {% for theme in event_reasoning_layer.first_order_beneficiaries or [] %}
+              <span class="allocation-chip">{{ theme }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% if event_reasoning_layer.second_order_beneficiaries %}
+        <div class="allocation-card propagation-card is-adjacent">
+          <div class="allocation-card-head">
+            <span class="allocation-ticker">二阶扩散</span>
+            <span class="allocation-weight">{{ event_reasoning_layer.second_order_beneficiaries | length }}</span>
+          </div>
+          <div class="allocation-card-sub">
+            {% for theme in event_reasoning_layer.second_order_beneficiaries %}
+              <span class="allocation-chip">{{ theme }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+        {% if theme_direction_card and (theme_direction_card.driver or theme_direction_card.winner_sides or theme_direction_card.loser_sides) %}
+        <div class="allocation-card propagation-card is-adjacent">
+          <div class="allocation-card-head">
+            <span class="allocation-ticker">方向判断</span>
+            <span class="allocation-weight">{{ theme_direction_card.driver or theme_direction_card.direction or "--" }}</span>
+          </div>
+          <div class="allocation-card-sub">
+            {% for side in theme_direction_card.winner_sides or [] %}
+              <span class="allocation-chip">{{ side }}</span>
+            {% endfor %}
+            {% for side in theme_direction_card.loser_sides or [] %}
+              <span class="allocation-chip">{{ side }}回避</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% if event_reasoning_layer.note %}
+      <div class="muted pick-meta">{{ event_reasoning_layer.note }}</div>
+      {% endif %}
+      {% if theme_direction_card and theme_direction_card.summary %}
+      <div class="muted pick-meta">{{ theme_direction_card.summary }}</div>
+      {% endif %}
+      {% endif %}
+      <div class="sim-section market-panel-ops">
+        <div class="sim-section-title">AGI链路标识</div>
+        <div class="id-meta market-panel-ops">
+          <span class="id-chip js-trace-chip" data-event-id="{{ pick_event_id or latest_sim_event_id or '' }}" data-batch-id="{{ pick_event_batch_id or latest_batch_id or '' }}">事件ID：{{ pick_event_id or latest_sim_event_id or "等待生成" }}</span>
+          <span class="id-chip js-trace-chip" data-event-id="{{ pick_event_id or latest_sim_event_id or '' }}" data-batch-id="{{ pick_event_batch_id or latest_batch_id or '' }}">批次ID：{{ pick_event_batch_id or latest_batch_id or "等待生成" }}</span>
+        </div>
+      </div>
+      <div class="section-title title-anim market-panel-ops">退出条件</div>
+      <div class="sim-taglist market-panel-ops">
+        {% if exit_rules %}
+          {% for rule in exit_rules %}
+            <span class="sim-tag">{{ rule }}</span>
+          {% endfor %}
+        {% else %}
+          <span class="sim-tag">等待生成</span>
+        {% endif %}
+      </div>
+      <div class="section-title title-anim market-panel-ops">持仓方式</div>
+      <p class="market-panel-ops">等权买入，持有至周期结束。</p>
+      {% if pick_allocations %}
+      <div class="muted pick-meta market-panel-ops">当前按候选分数建议分仓：</div>
+      <div class="allocation-strip market-panel-ops">
+        {% for row in pick_allocations %}
+          <div class="allocation-card">
+            <div class="allocation-card-head">
+              <div class="allocation-ticker-wrap">
+                <span class="allocation-ticker">{{ row.ticker }}</span>
+                {% if row.spark_points %}
+                  <svg class="allocation-sparkline {% if row.spark_trend %}is-{{ row.spark_trend }}{% endif %}" viewBox="0 0 132 42" aria-label="{{ row.ticker }} price trend">
+                    <polyline fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" points="{{ row.spark_points }}"></polyline>
+                  </svg>
+                {% endif %}
+              </div>
+              <span class="allocation-weight">{{ (row.target_position_pct * 100) | round(1) }}%</span>
+            </div>
+            <div class="allocation-card-sub">
+              {% if row.pick_score is not none %}
+                <span class="allocation-chip">分数 {{ row.pick_score }}</span>
+              {% endif %}
+              <span class="allocation-chip">权重 {{ (row.weight * 100) | round(1) }}%</span>
+              {% if row.spark_source == "eastmoney_kline" %}
+                <span class="allocation-chip">Kline fallback</span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="section-title title-anim market-panel-ops">分批建仓计划</div>
+      {% if entry_plan %}
+        {% set denom = hold_days if hold_days and hold_days > 0 else 10 %}
+        <div class="entry-plan market-panel-ops">
+          <div class="entry-track"></div>
+          {% for p in entry_plan %}
+            {% set pos = ((p.day / denom) * 100) if denom else 0 %}
+            <div class="entry-step" style="left: {{ 8 if pos < 8 else (92 if pos > 92 else pos) }}%;">
+              <span class="entry-dot"></span>
+              <span class="entry-label">D{{ p.day }} · {{ (p.position_pct * 100) | round(1) }}%</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="sim-taglist market-panel-ops">
+          <span class="sim-tag">当前无建仓计划（观察中）</span>
+        </div>
+      {% endif %}
+      {% if is_admin %}
+      <div class="section-title title-anim">管理员手动触发</div>
+      <div class="muted pick-meta">
+        价格快照：{{ price_snapshot_status.count or 0 }} 条
+        ｜建仓 {{ price_snapshot_status.entry_count or 0 }} 条
+        ｜收盘 {{ price_snapshot_status.close_count or 0 }} 条
+        {% if price_snapshot_status.latest_at %}｜最近更新 {{ price_snapshot_status.latest_at }}{% endif %}
+      </div>
+      <div class="chip-list">
+        <button class="chip chip-btn" type="button" id="admin-run-sim">跑分推演</button>
+        <button class="chip chip-btn" type="button" id="admin-run-rollup">跑总推断</button>
+        <button class="chip chip-btn" type="button" id="admin-run-pick">跑选股</button>
+        <button class="chip chip-btn" type="button" id="admin-run-review">跑复盘</button>
+        <button class="chip chip-btn" type="button" id="admin-run-price-snapshot">抓价格快照</button>
+        <form method="get" action="/simulator" style="display:inline;">
+          <input type="hidden" name="draft_kind" value="pick" />
+          <button class="chip chip-btn" type="submit">生成公众号草稿</button>
+        </form>
+        <form method="get" action="/simulator" style="display:inline;">
+          <input type="hidden" name="draft_kind" value="event" />
+          <button class="chip chip-btn" type="submit">生成事件推演稿</button>
+        </form>
+        <form method="post" action="/admin/logout" style="display:inline;">
+          <button class="chip chip-btn" type="submit">退出管理员模式</button>
+        </form>
+      </div>
+      <div class="muted pick-meta" id="admin-run-status">管理员模式已开启</div>
+      <div class="admin-draft-panel{% if not wechat_draft %} hidden{% endif %}" id="admin-draft-panel">
+        <div class="sim-section-title">公众号草稿</div>
+        <textarea id="admin-draft-output" class="admin-draft-output" rows="10" readonly>{% if wechat_draft %}{{ wechat_draft.draft }}{% endif %}</textarea>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+{% if pick_candidate_pool or filtered_candidates %}
+      <div class="candidate-pool-card">
+        <div class="strategy-picks-head">
+          <div class="strategy-picks-title">候选池优先级</div>
+          <div class="strategy-picks-date">
+            Qwen 在预选池中的排序结果
+            {% if fundamental_filter %}
+              &#65372;&#30828;&#24615;&#31579;&#36873;
+              {% if fundamental_filter.enabled %}&#24050;&#24320;&#21551;{% else %}&#24050;&#20851;&#38381;{% endif %}
+              {% if fundamental_filter.enabled %}
+                &#65372;&#36890;&#36807; {{ fundamental_filter.kept_count or 0 }} / &#26410;&#36890;&#36807; {{ fundamental_filter.filtered_count or 0 }}
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+        {% if candidate_pool_limits %}
+        <div class="muted pick-meta">
+          原始召回上限 {{ candidate_pool_limits.recall_pool or 0 }} 只
+          ｜精排池 {{ candidate_pool_limits.llm_pool or 0 }} 只
+          ｜信息增强 {{ candidate_pool_limits.enrich_pool or 0 }} 只
+          ｜页面展示 {{ candidate_pool_limits.display_pool or 0 }} 只
+          {% if candidate_pool_counts %}
+          ｜当前保留 {{ candidate_pool_counts.final_candidates or 0 }} 只
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if core_candidate_pool %}
+        <div class="candidate-pool-section-title">核心候选</div>
+        <div class="candidate-pool-list">
+          {% for item in core_candidate_pool %}
+          {{ render_candidate_card(item, rank=loop.index) }}
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if backup_candidate_pool %}
+        <div class="candidate-pool-section-title mobile-secondary-block">高波动备选</div>
+        <div class="candidate-pool-list mobile-secondary-block">
+          {% for item in backup_candidate_pool %}
+          {{ render_candidate_card(item, rank=loop.index + (core_candidate_pool|length), backup=true) }}
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if filtered_candidates %}
+        <details class="candidate-pool-disclosure mobile-secondary-block">
+          <summary class="candidate-pool-disclosure-summary">
+            <span class="candidate-pool-section-title candidate-pool-section-title-inline">&#26410;&#36890;&#36807;&#30828;&#24615;&#31579;&#36873;</span>
+            <span class="candidate-pool-disclosure-meta">{{ filtered_candidates|length }} &#21482;</span>
+          </summary>
+          <div class="candidate-pool-disclosure-note muted">
+            &#20197;&#19979;&#32929;&#31080;&#21487;&#33021;&#26377;&#20027;&#39064;&#36923;&#36753;&#65292;&#20294;&#26410;&#36890;&#36807;&#24403;&#21069;&#30340;&#22522;&#26412;&#38754; / &#24066;&#20540; / &#27969;&#36890;&#30424; / &#21487;&#20132;&#26131;&#24615;&#26465;&#20214;&#65292;&#22240;&#27492;&#26410;&#36827;&#20837;&#26368;&#32456;&#20505;&#36873;&#27744;&#12290;
+          </div>
+          <div class="candidate-pool-list candidate-pool-list-muted">
+            {% for item in filtered_candidates %}
+            {{ render_candidate_card(item, filtered=true) }}
+            {% endfor %}
+          </div>
+        </details>
+        {% endif %}
+      </div>
+      {% endif %}
+
+  <div class="modal hidden" id="sim-detail-modal">
+    <div class="modal-backdrop" id="sim-detail-close"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title">特色栏目｜消息驱动模拟投资</div>
+        <button class="ghost" type="button" id="sim-detail-close-btn">关闭</button>
+      </div>
+      <p>这是我们的核心特色栏目。我们以快讯与事件为输入，通过消息归集与 AGI 驱动的海内外事件沙盘模拟，评估事件影响的长短周期与可能扩散的板块路径，进而形成选股线索与策略参考。</p>
+      <p>例如 2023 年 GPT 引爆全网关注时，我们会先判断“算力瓶颈”是否成立，再沿着链路推演到服务器、液冷、光模块等关键环节，给出发酵强度与节奏判断，并据此制定阶段性持股策略与观察窗口。</p>
+      <p class="muted">当前为轻量规则版，已纳入概率市场与世界事件市场作为辅助信号，后续将继续增强权重校准与决策模型。</p>
+    </div>
+  </div>
+
+  <section class="hero-card glass parallax-card reveal sim-mobile-secondary" data-progress-step="trading">
+      <div class="section-title title-anim">模拟交易成绩</div>
+      <p class="muted">优先展示真实价格快照；若暂无快照，则回退为估算展示。盘中会持续补记最新价，收盘后会额外记录收盘快照。</p>
+      <table class="table" id="sim-holdings-table" data-pick-date="{{ pick_date or '' }}">
+      <thead>
+        <tr>
+          <th>股票</th>
+          <th>买入价</th>
+          <th>当前价</th>
+          <th>盈亏</th>
+          <th>价格来源</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in holdings %}
+          <tr data-ticker="{{ row.ticker }}">
+            <td data-label="股票">{{ row.ticker }}</td>
+            <td class="js-entry" data-label="买入价">{{ row.entry }}</td>
+            <td class="js-last" data-label="当前价">{{ row.last }}</td>
+            <td class="js-pnl" data-label="盈亏">{{ row.pnl }}</td>
+            <td data-label="价格来源">
+              <span class="price-badge js-price-badge {{ 'is-real' if row.price_badge == '真实快照' else 'is-estimated' }}">
+                {{ row.price_badge or "估算价格" }}
+              </span>
+              {% if row.target_position_pct is not none or row.pick_score is not none %}
+                <div class="holding-insights">
+                  {% if row.target_position_pct is not none %}
+                    <span class="holding-insight-badge is-allocation">建议分仓 {{ (row.target_position_pct * 100) | round(1) }}%</span>
+                  {% endif %}
+                  {% if row.pick_score is not none %}
+                    <span class="holding-insight-badge is-score">候选分数 {{ row.pick_score }}</span>
+                  {% endif %}
+                  {% if row.fundamental_card and row.fundamental_card.fundamental_score is not none %}
+                    <span class="holding-insight-badge is-score">财报分 {{ row.fundamental_card.fundamental_score }}</span>
+                  {% endif %}
+                </div>
+              {% endif %}
+              {% if row.fundamental_card and row.fundamental_card.metrics %}
+                <div class="muted">
+                  {% if row.theme %}{{ row.theme }} / {% endif %}
+                  {% if row.fundamental_card.metrics.roe is not none %}ROE {{ row.fundamental_card.metrics.roe }}%{% endif %}
+                  {% if row.fundamental_card.metrics.debt_ratio is not none %} / Debt {{ row.fundamental_card.metrics.debt_ratio }}%{% endif %}
+                  {% if row.fundamental_card.metrics.revenue_delta_pct is not none %} / Rev {{ row.fundamental_card.metrics.revenue_delta_pct }}%{% endif %}
+                  {% if row.fundamental_card.metrics.profit_delta_pct is not none %} / NP {{ row.fundamental_card.metrics.profit_delta_pct }}%{% endif %}
+                </div>
+              {% endif %}
+              {% if row.fundamental_card and row.fundamental_card.highlights %}
+                <div class="muted">亮点：{{ row.fundamental_card.highlights | join("; ") }}</div>
+              {% endif %}
+              {% if row.fundamental_card and row.fundamental_card.risks %}
+                <div class="muted">风险：{{ row.fundamental_card.risks | join("; ") }}</div>
+              {% endif %}
+              <div class="muted js-price-updated">{% if row.price_updated_at %}{{ row.price_updated_at }}{% endif %}</div>
+              {% if row.entry_note %}
+                <div class="muted">{{ row.entry_note }}</div>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="hero-card glass parallax-card reveal" id="equity-overview" data-progress-step="equity">
+    <div class="section-title title-anim">收益曲线</div>
+    <div class="chart-toolbar">
+      <span class="muted">时间粒度</span>
+      <div class="chip-list">
+        <button class="chip chip-btn active" data-interval="1d" type="button">日</button>
+        <button class="chip chip-btn" data-interval="1h" type="button">小时</button>
+        <button class="chip chip-btn" data-interval="15m" type="button">15分钟</button>
+        <button class="chip chip-btn" data-interval="1m" type="button">分钟</button>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-stage">
+        <svg viewBox="0 0 1000 240" class="line-chart" aria-label="equity curve">
+          <polyline id="line-total" fill="none" stroke="#0071e3" stroke-width="3" points="{{ points }}" />
+          <polyline id="line-profit" fill="none" stroke="#f97316" stroke-width="2.5" points="" />
+        </svg>
+        <div class="chart-hover" id="chart-hover">
+          <div class="chart-line" id="chart-line"></div>
+          <div class="chart-dot" id="chart-dot"></div>
+          <div class="chart-tooltip" id="chart-tooltip"></div>
+        </div>
+      </div>
+      <div class="chart-axis">
+        <span id="axis-start"></span>
+        <span id="axis-mid"></span>
+        <span id="axis-end"></span>
+      </div>
+      <div class="chart-meta">
+        <span>起始：¥{{ initial_cash }}</span>
+        <span>当前：¥{{ final_value }}</span>
+        <span>累计收益：{{ return_pct }}%</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="hero-card glass parallax-card reveal sim-thesis-handoff" id="event-simulations" data-progress-step="simulation">
+    <div class="section-title title-anim">&#25512;&#28436;&#20837;&#21475;</div>
+    <p class="muted">&#23436;&#25972;&#30340;&#20107;&#20214;&#25512;&#28436;&#21644;&#24635;&#25512;&#26029;&#24050;&#32463;&#31227;&#21040;&#25512;&#28436;&#24341;&#25806;&#12290;&#27169;&#25311;&#20154;&#31867;&#25237;&#36164;&#36825;&#37324;&#21482;&#30041;&#25191;&#34892;&#21069;&#26368;&#35813;&#30475;&#30340;&#25688;&#35201;&#21644;&#24555;&#36895;&#20837;&#21475;&#12290;</p>
+    <div class="sim-handoff-grid">
+      <a class="sim-handoff-card" href="/thesis-engine#latest-rollup">
+        <div class="sim-handoff-kicker">&#24635;&#25512;&#26029;</div>
+        <div class="sim-handoff-title">{{ rollups[0].title if rollups else "&#26242;&#26080;&#24635;&#25512;&#26029;" }}</div>
+        <div class="sim-handoff-copy">{{ rollups[0].narrative if rollups else "&#31561;&#24453;&#24635;&#25512;&#26029;&#29983;&#25104;&#21518;&#65292;&#36825;&#37324;&#20250;&#33258;&#21160;&#26174;&#31034;&#26368;&#26032;&#25688;&#35201;&#12290;" }}</div>
+        <div class="sim-handoff-meta">
+          <span class="chip">&#25171;&#24320;&#25512;&#28436;&#24341;&#25806;</span>
+          {% if rollups and rollups[0].event_batch_id %}<span class="chip">{{ rollups[0].event_batch_id }}</span>{% endif %}
+        </div>
+      </a>
+      <a class="sim-handoff-card sim-handoff-card-accent" href="/thesis-engine#latest-simulation">
+        <div class="sim-handoff-kicker">&#20107;&#20214;&#25512;&#28436;</div>
+        <div class="sim-handoff-title">{{ simulations[0].title if simulations else "&#26242;&#26080;&#20107;&#20214;&#25512;&#28436;" }}</div>
+        <div class="sim-handoff-copy">{{ simulations[0].narrative if simulations else "&#31561;&#24453;&#20107;&#20214;&#25512;&#28436;&#29983;&#25104;&#21518;&#65292;&#36825;&#37324;&#20250;&#33258;&#21160;&#26174;&#31034;&#26368;&#26032;&#25688;&#35201;&#12290;" }}</div>
+        <div class="sim-handoff-meta">
+          <span class="chip">&#26597;&#30475;&#23436;&#25972;&#21345;&#29255;</span>
+          {% if simulations and simulations[0].event_id %}<span class="chip">{{ simulations[0].event_id }}</span>{% endif %}
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section class="hero-card glass parallax-card reveal sim-mobile-secondary" data-progress-step="review">
+    <div class="section-title title-anim">推演复盘</div>
+    <div class="sim-stats">
+      <div class="sim-stat-card">
+        <div class="sim-stat-label">7天胜率</div>
+        <div class="sim-stat-value">
+          {% if review_summary["7"]["win_rate"] is not none %}
+            {{ review_summary["7"]["win_rate"] }}%
+          {% else %}
+            待统计
+          {% endif %}
+        </div>
+        <div class="sim-stat-label">样本 {{ review_summary["7"]["count"] }}</div>
+      </div>
+      <div class="sim-stat-card">
+        <div class="sim-stat-label">14天胜率</div>
+        <div class="sim-stat-value">
+          {% if review_summary["14"]["win_rate"] is not none %}
+            {{ review_summary["14"]["win_rate"] }}%
+          {% else %}
+            待统计
+          {% endif %}
+        </div>
+        <div class="sim-stat-label">样本 {{ review_summary["14"]["count"] }}</div>
+      </div>
+      <div class="sim-stat-card">
+        <div class="sim-stat-label">30天胜率</div>
+        <div class="sim-stat-value">
+          {% if review_summary["30"]["win_rate"] is not none %}
+            {{ review_summary["30"]["win_rate"] }}%
+          {% else %}
+            待统计
+          {% endif %}
+        </div>
+        <div class="sim-stat-label">样本 {{ review_summary["30"]["count"] }}</div>
+      </div>
+    </div>
+    <div class="sim-section">
+      <div class="sim-section-title">最近复盘归因</div>
+      <div class="sim-taglist">
+        {% for r in latest_reviews %}
+          <span class="sim-tag">
+            {{ r.sim_date }}｜{{ r.horizon_days }}天｜收益 {{ r.return_pct if r.return_pct is not none else "NA" }}%
+            {% if r.alpha_pct is not none %}｜Alpha {{ r.alpha_pct }}%{% endif %}
+            {% if r.primary %}｜{{ r.primary }}{% endif %}
+            {% if r.data_mode %}｜{{ "真实快照" if r.data_mode == "snapshot" else "估算回测" }}{% endif %}
+          </span>
+        {% else %}
+          <span class="sim-tag">等待复盘样本积累</span>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <div class="modal hidden" id="trace-modal">
+    <div class="modal-backdrop" id="trace-close"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title" id="trace-title">AGI 链路详情</div>
+        <button class="ghost" type="button" id="trace-close-btn">关闭</button>
+      </div>
+      <div class="muted" id="trace-subtitle">读取中…</div>
+      <div class="sim-stats" id="trace-counts"></div>
+      <div class="sim-section">
+        <div class="sim-section-title">链路时间线</div>
+        <div class="top-events" id="trace-timeline">
+          <div class="muted">读取中…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const openDetail = document.getElementById("open-sim-detail");
+    const modal = document.getElementById("sim-detail-modal");
+    const closeMask = document.getElementById("sim-detail-close");
+    const closeBtn = document.getElementById("sim-detail-close-btn");
+    const jumpToSimulations = document.getElementById("jump-to-simulations");
+    const eventSimulations = document.getElementById("event-simulations");
+
+    function closeModal() {
+      if (modal) modal.classList.add("hidden");
+    }
+    function openModal() {
+      if (modal) modal.classList.remove("hidden");
+    }
+
+    if (openDetail) openDetail.addEventListener("click", openModal);
+    if (closeMask) closeMask.addEventListener("click", closeModal);
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+    if (jumpToSimulations && eventSimulations) {
+      jumpToSimulations.addEventListener("click", () => {
+        eventSimulations.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
+    const simHoldingsTable = document.getElementById("sim-holdings-table");
+    async function refreshHoldingPrices(tableEl) {
+      if (!tableEl || document.hidden) return;
+      const rows = Array.from(tableEl.querySelectorAll("tbody tr[data-ticker]"));
+      const tickers = rows.map((row) => row.dataset.ticker).filter(Boolean);
+      if (!tickers.length) return;
+      try {
+        const query = new URLSearchParams({
+          symbols: tickers.join(","),
+          pick_date: tableEl.dataset.pickDate || "",
+        });
+        const res = await fetch(`/api/holding_prices?${query.toString()}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const payload = await res.json();
+        const items = payload.items || {};
+        const capturedAt = payload.captured_at || "";
+        rows.forEach((row) => {
+          const ticker = row.dataset.ticker;
+          const price = Number(items[ticker]);
+          if (!Number.isFinite(price) || price <= 0) return;
+          const entryEl = row.querySelector(".js-entry");
+          const lastEl = row.querySelector(".js-last");
+          const pnlEl = row.querySelector(".js-pnl");
+          const badgeEl = row.querySelector(".js-price-badge");
+          const updatedEl = row.querySelector(".js-price-updated");
+          const entry = Number(entryEl?.textContent || 0);
+          if (lastEl) lastEl.textContent = price.toFixed(2);
+          if (pnlEl && Number.isFinite(entry) && entry > 0) {
+            const pnl = ((price / entry) - 1) * 100;
+            pnlEl.textContent = `${pnl.toFixed(2)}%`;
+          }
+          if (badgeEl) {
+            badgeEl.textContent = "实时快照";
+            badgeEl.classList.remove("is-estimated");
+            badgeEl.classList.add("is-real");
+          }
+          if (updatedEl && capturedAt) {
+            updatedEl.textContent = capturedAt;
+          }
+        });
+      } catch (err) {
+        // ignore
+      }
+    }
+    if (simHoldingsTable) {
+      setTimeout(() => refreshHoldingPrices(simHoldingsTable), 900);
+      setInterval(() => {
+        refreshHoldingPrices(simHoldingsTable);
+      }, 25000);
+    }
+
+    const traceModal = document.getElementById("trace-modal");
+    const traceClose = document.getElementById("trace-close");
+    const traceCloseBtn = document.getElementById("trace-close-btn");
+    const traceTitle = document.getElementById("trace-title");
+    const traceSubtitle = document.getElementById("trace-subtitle");
+    const traceCounts = document.getElementById("trace-counts");
+    const traceTimeline = document.getElementById("trace-timeline");
+
+    function closeTraceModal() {
+      if (traceModal) traceModal.classList.add("hidden");
+    }
+    function openTraceModal() {
+      if (traceModal) traceModal.classList.remove("hidden");
+    }
+    if (traceClose) traceClose.addEventListener("click", closeTraceModal);
+    if (traceCloseBtn) traceCloseBtn.addEventListener("click", closeTraceModal);
+
+    const equityValues = {{ equity_values | safe }};
+    const profitValues = {{ profit_values | safe }};
+    const equityLabels = {{ equity_labels | safe }};
+
+    const totalLine = document.getElementById("line-total");
+    const profitLine = document.getElementById("line-profit");
+    const chartStage = document.querySelector(".chart-stage");
+    const chartSvg = document.querySelector(".line-chart");
+    const chartHover = document.getElementById("chart-hover");
+    const chartLine = document.getElementById("chart-line");
+    const chartDot = document.getElementById("chart-dot");
+    const chartTooltip = document.getElementById("chart-tooltip");
+    const axisStart = document.getElementById("axis-start");
+    const axisMid = document.getElementById("axis-mid");
+    const axisEnd = document.getElementById("axis-end");
+    const pankouGrid = document.getElementById("pankou-grid");
+    const pankouTime = document.getElementById("pankou-time");
+
+    let currentSeries = equityValues;
+    let currentProfit = profitValues;
+    let currentLabels = equityLabels;
+    let currentY = [];
+
+    function buildPoints(series, min, max) {
+      const span = Math.max(max - min, 1);
+      const points = [];
+      const yValues = [];
+      for (let i = 0; i < series.length; i += 1) {
+        const x = (i / (series.length - 1)) * 1000;
+        const y = 220 - ((series[i] - min) / span * 180 + 20);
+        points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+        yValues.push(y);
+      }
+      return { points, yValues };
+    }
+
+    function resample(values, count) {
+      if (count <= 1) return [values[values.length - 1]];
+      const result = [];
+      for (let i = 0; i < count; i += 1) {
+        const pos = (i / (count - 1)) * (values.length - 1);
+        const left = Math.floor(pos);
+        const right = Math.min(values.length - 1, left + 1);
+        const ratio = pos - left;
+        const value = values[left] * (1 - ratio) + values[right] * ratio;
+        result.push(Number(value.toFixed(2)));
+      }
+      return result;
+    }
+
+    function buildLabels(count, interval) {
+      const now = new Date();
+      const labels = [];
+      for (let i = 0; i < count; i += 1) {
+        const t = new Date(now);
+        if (interval === "1d") {
+          t.setDate(now.getDate() - (count - 1 - i));
+          labels.push(`${String(t.getMonth() + 1).padStart(2, "0")}/${String(t.getDate()).padStart(2, "0")}`);
+        } else if (interval === "1h") {
+          t.setHours(now.getHours() - (count - 1 - i));
+          labels.push(`${String(t.getHours()).padStart(2, "0")}:00`);
+        } else if (interval === "15m") {
+          t.setMinutes(now.getMinutes() - (count - 1 - i) * 15);
+          labels.push(`${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`);
+        } else {
+          t.setMinutes(now.getMinutes() - (count - 1 - i));
+          labels.push(`${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`);
+        }
+      }
+      return labels;
+    }
+
+    function renderSeries(series, profitSeries, labels) {
+      const min = Math.min(...series, ...profitSeries);
+      const max = Math.max(...series, ...profitSeries);
+      const total = buildPoints(series, min, max);
+      const profit = buildPoints(profitSeries, min, max);
+      if (totalLine) totalLine.setAttribute("points", total.points.join(" "));
+      if (profitLine) profitLine.setAttribute("points", profit.points.join(" "));
+      currentSeries = series;
+      currentProfit = profitSeries;
+      currentLabels = labels;
+      currentY = total.yValues;
+      if (axisStart) axisStart.textContent = labels[0] || "";
+      if (axisMid) axisMid.textContent = labels[Math.floor(labels.length / 2)] || "";
+      if (axisEnd) axisEnd.textContent = labels[labels.length - 1] || "";
+    }
+
+    function setIntervalView(interval) {
+      if (interval === "1d") {
+        renderSeries(equityValues, profitValues, equityLabels);
+        return;
+      }
+      const count = interval === "1h" ? 24 : interval === "15m" ? 96 : 60;
+      const series = resample(equityValues, count);
+      const profitSeries = resample(profitValues, count);
+      const labels = buildLabels(count, interval);
+      renderSeries(series, profitSeries, labels);
+    }
+
+    renderSeries(equityValues, profitValues, equityLabels);
+
+    document.querySelectorAll(".chip-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".chip-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        setIntervalView(btn.dataset.interval || "1d");
+      });
+    });
+
+    if (chartStage && chartHover && chartSvg) {
+      chartStage.addEventListener("mousemove", (event) => {
+        const rect = chartSvg.getBoundingClientRect();
+        const x = Math.min(Math.max(event.clientX - rect.left, 0), rect.width);
+        const idx = Math.round((x / rect.width) * (currentSeries.length - 1));
+        const value = currentSeries[idx];
+        const profit = currentProfit[idx];
+        const label = currentLabels[idx] || "";
+        const y = (currentY[idx] / 240) * rect.height;
+
+        chartLine.style.transform = `translateX(${x}px)`;
+        chartDot.style.transform = `translate(${x - 4}px, ${y - 4}px)`;
+        chartTooltip.textContent = `总额 ¥${value.toFixed(2)} · 收益 ¥${profit.toFixed(2)} · ${label}`;
+        const tooltipX = Math.min(x + 12, rect.width - 120);
+        const tooltipY = Math.max(y - 34, 4);
+        chartTooltip.style.transform = `translate(${tooltipX}px, ${tooltipY}px)`;
+        chartHover.classList.add("active");
+      });
+
+      chartStage.addEventListener("mouseleave", () => {
+        chartHover.classList.remove("active");
+      });
+    }
+
+    function formatPankouRows(data) {
+      if (!data) return [];
+      const rows = [
+        { label: "卖五", price: data.sp5, size: data.sc5 },
+        { label: "卖四", price: data.sp4, size: data.sc4 },
+        { label: "卖三", price: data.sp3, size: data.sc3 },
+        { label: "卖二", price: data.sp2, size: data.sc2 },
+        { label: "卖一", price: data.sp1, size: data.sc1 },
+        { label: "买一", price: data.bp1, size: data.bc1 },
+        { label: "买二", price: data.bp2, size: data.bc2 },
+        { label: "买三", price: data.bp3, size: data.bc3 },
+        { label: "买四", price: data.bp4, size: data.bc4 },
+        { label: "买五", price: data.bp5, size: data.bc5 },
+      ];
+      return rows.filter((row) => row.price !== undefined || row.size !== undefined);
+    }
+
+    function renderPankou(rows) {
+      if (!pankouGrid) return;
+      if (!rows.length) {
+        pankouGrid.innerHTML = '<div class="pankou-row"><span>盘口数据不可用</span><span>--</span><span>--</span></div>';
+        return;
+      }
+      pankouGrid.innerHTML = rows.map((row) => {
+        const price = row.price !== undefined && row.price !== null ? row.price : "--";
+        const size = row.size !== undefined && row.size !== null ? row.size : "--";
+        return `<div class="pankou-row"><span>${row.label}</span><span>${price}</span><span>${size}</span></div>`;
+      }).join("");
+    }
+
+    async function fetchPankou() {
+      try {
+        const res = await fetch("/api/pankou?symbol=SH600519");
+        if (!res.ok) throw new Error("bad status");
+        const data = await res.json();
+        const rows = formatPankouRows(data.data || {});
+        renderPankou(rows);
+        if (pankouTime && data.data && data.data.timestamp) {
+          const ts = new Date(Number(data.data.timestamp));
+          pankouTime.textContent = `${ts.getHours().toString().padStart(2, "0")}:${ts.getMinutes().toString().padStart(2, "0")}:${ts.getSeconds().toString().padStart(2, "0")}`;
+        }
+      } catch (err) {
+        renderPankou([]);
+      }
+    }
+
+    function startManagedInterval(fn, ms, runImmediately = true) {
+      if (runImmediately) fn();
+      return setInterval(() => {
+        if (document.hidden) return;
+        fn();
+      }, ms);
+    }
+
+    const marketPanel = document.getElementById("market-panel");
+    let marketFeedsStarted = false;
+
+    function startMarketFeeds() {
+      if (marketFeedsStarted) return;
+      marketFeedsStarted = true;
+      startManagedInterval(fetchPankou, 15000, true);
+      startManagedInterval(loadQuotes, 20000, true);
+      setTimeout(() => {
+        if (!document.hidden) loadCnQuotes();
+      }, 800);
+      startManagedInterval(() => loadCnQuotes(), 20000, false);
+    }
+
+    if (marketPanel) {
+      const marketObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          startMarketFeeds();
+          observer.disconnect();
+        });
+      }, { rootMargin: "280px 0px" });
+      marketObserver.observe(marketPanel);
+    } else {
+      startMarketFeeds();
+    }
+
+    const simGrid = document.getElementById("sim-grid");
+    const rollupGrid = document.getElementById("rollup-grid");
+
+    function renderImpactGrid(impactParsed, fallbackText) {
+      if (impactParsed && typeof impactParsed === "object") {
+        const pairs = [
+          ["宏观", impactParsed.macro],
+          ["行业", impactParsed.industry],
+          ["资产", impactParsed.assets],
+        ].filter(([, value]) => value);
+        if (pairs.length) {
+          return `
+            <div class="sim-impact-grid">
+              ${pairs.map(([label, value]) => `
+                <div class="sim-impact-item">
+                  <span class="sim-impact-label">${escHtml(label)}</span>
+                  <span class="sim-impact-value">${escHtml(value)}</span>
+                </div>
+              `).join("")}
+            </div>
+          `;
+        }
+      }
+      return `
+        <div class="sim-impact-grid">
+          <div class="sim-impact-item sim-impact-empty">
+            <span class="sim-impact-value">${escHtml(fallbackText || "待生成")}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderChainList(chainParsed, fallbackText) {
+      const chainItems = Array.isArray(chainParsed) ? chainParsed.filter(Boolean) : [];
+      if (chainItems.length) {
+        return `
+          <div class="sim-chain-list">
+            ${chainItems.map((item) => `<span class="sim-chain-chip">${escHtml(item)}</span>`).join("")}
+          </div>
+        `;
+      }
+      return `
+        <div class="sim-chain-list">
+          <span class="sim-chain-chip">${escHtml(fallbackText || "待生成")}</span>
+        </div>
+      `;
+    }
+
+    function renderBiasTags(tags) {
+      const list = Array.isArray(tags) && tags.length ? tags : ["待生成"];
+      return `
+        <div class="sim-taglist">
+          ${list.map((t) => `<span class="sim-tag">${escHtml(t)}</span>`).join("")}
+        </div>
+      `;
+    }
+
+    function renderSimulations(items, targetGrid) {
+      if (!targetGrid) return;
+      if (!items || items.length === 0) return;
+      function tryParseJson(value) {
+        if (!value || typeof value !== "string") return null;
+        try {
+          return JSON.parse(value);
+        } catch (err) {
+          return null;
+        }
+      }
+      function tidyNarrative(text) {
+        if (!text) return "推演结果生成中…";
+        return text.replace(/建议持有[^\n。]*[。]?/g, "").trim() || "推演结果生成中…";
+      }
+      targetGrid.innerHTML = items.map((row) => {
+        const title = row.title || "推演事件";
+        const narrative = tidyNarrative(row.narrative);
+        const riskOutlook = row.risk_outlook || "待定";
+        const biasParsed = tryParseJson(row.bias_tags);
+        const biasTags = Array.isArray(biasParsed) ? biasParsed : (row.bias_tags ? [row.bias_tags] : ["待生成"]);
+        const impactParsed = tryParseJson(row.impact_map);
+        const impactHtml = renderImpactGrid(impactParsed, row.impact_map || "待生成");
+        const topParsed = tryParseJson(row.top_events_json);
+        const topEvents = Array.isArray(topParsed)
+          ? topParsed.slice(0, 3)
+          : [];
+        const chainParsed = tryParseJson(row.chain_json);
+        const chainHtml = renderChainList(chainParsed, row.chain_json || "待生成");
+        const hypeDays = row.hype_days ? `${row.hype_days} 天` : "待定";
+        const fermentDays = row.ferment_days ? `${row.ferment_days} 天` : "待定";
+        const isRollup = Boolean(row.top_events_json);
+        const topEventsHtml = topEvents.length
+          ? topEvents.map((ev) => {
+              const evTitle = ev.title || ev.sim_date || "关键事件";
+              const evHype = ev.hype_days ? `${ev.hype_days} 天` : "待定";
+              const evScore = ev.score !== undefined && ev.score !== null ? Number(ev.score).toFixed(2) : "";
+              const evScorePct = ev.score !== undefined && ev.score !== null
+                ? Math.min(Math.max(Number(ev.score) / 3, 0), 1)
+                : 0;
+              const evRank = ev.rank ? `#${ev.rank}` : "";
+              return `
+                <div class="top-event-card">
+                  <div class="top-event-title">${evTitle}</div>
+                  <div class="top-event-meta">
+                    <span>发酵周期 ${evHype}</span>
+                    ${evScore ? `<span>重要度 ${evScore}</span>` : ""}
+                    ${evRank ? `<span>排序 ${evRank}</span>` : ""}
+                  </div>
+                  <div class="importance-bar">
+                    <div class="importance-fill" style="width: ${Math.round(evScorePct * 100)}%"></div>
+                  </div>
+                </div>
+              `;
+            }).join("")
+          : '<div class="muted">等待生成</div>';
+        return `
+          <div class="sim-card">
+            <div class="sim-head">
+              <div class="sim-title">${title}</div>
+            </div>
+            <div class="id-meta">
+              ${row.event_id ? `<span class="id-chip js-trace-chip" data-event-id="${row.event_id || ""}" data-batch-id="${row.event_batch_id || ""}">事件ID：${row.event_id}</span>` : ""}
+              ${(row.event_batch_id || isRollup) ? `<span class="id-chip js-trace-chip" data-event-id="${row.event_id || ""}" data-batch-id="${row.event_batch_id || ""}">批次ID：${row.event_batch_id || "--"}</span>` : ""}
+            </div>
+            ${isRollup ? `
+            <div class="sim-stats">
+              <div class="sim-stat-card">
+                <div class="sim-stat-label">事件发酵预估</div>
+                <div class="sim-stat-value">${fermentDays}</div>
+              </div>
+            </div>` : `
+            <div class="sim-stats">
+              <div class="sim-stat-card">
+                <div class="sim-stat-label">发酵周期</div>
+                <div class="sim-stat-value">${hypeDays}</div>
+              </div>
+            </div>`}
+            <div class="sim-thesis-card">
+              <div class="sim-section-title">${isRollup ? "主线纪要" : "核心结论"}</div>
+              <p class="sim-text">${escHtml(narrative)}</p>
+            </div>
+            <div class="sim-section">
+              <div class="sim-section-title">影响地图</div>
+              ${impactHtml}
+            </div>
+            <div class="sim-section">
+              <div class="sim-section-title">${isRollup ? "主线链路" : "因果链"}</div>
+              ${chainHtml}
+            </div>
+            <div class="sim-section">
+              <div class="sim-section-title">风险判断</div>
+              <div class="sim-risk-box">${escHtml(riskOutlook)}</div>
+            </div>
+            <div class="sim-section">
+              <div class="sim-section-title">结论标签</div>
+              ${renderBiasTags(biasTags)}
+            </div>
+            ${row.top_events_json ? `
+            <div class="sim-section">
+              <div class="sim-section-title">未来最大影响事件</div>
+              <div class="top-events">${topEventsHtml}</div>
+            </div>` : ""}
+          </div>
+        `;
+      }).join("");
+      bindTraceChips();
+      const status = document.getElementById("sim-status");
+      if (status) {
+        const latest = items[0];
+        const simTime = latest && latest.sim_date ? latest.sim_date : "未知时间";
+        let count = "";
+        try {
+          const sources = latest && latest.source_items ? JSON.parse(latest.source_items) : [];
+          count = Array.isArray(sources) ? sources.length : "";
+        } catch (err) {
+          count = "";
+        }
+        const simEventId = latest && latest.event_id ? latest.event_id : "";
+        const simBatchId = latest && latest.event_batch_id ? latest.event_batch_id : "";
+        const idSuffix = simEventId || simBatchId
+          ? `｜${simEventId ? `事件 ${simEventId}` : ""}${simBatchId ? `${simEventId ? " / " : ""}批次 ${simBatchId}` : ""}`
+          : "";
+        status.textContent = count
+          ? `最近推演：${simTime}（使用 ${count} 条快讯）${idSuffix}`
+          : `最近推演：${simTime}${idSuffix}`;
+      }
+    }
+
+    async function pollSimulations() {
+      try {
+        const res = await fetch("/api/simulations?limit=3");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.items && data.items.length > 0) {
+          renderSimulations(data.items, simGrid);
+        }
+      } catch (err) {
+        // silent
+      }
+    }
+
+    if (simGrid && simGrid.querySelector(".sim-loading")) {
+      startManagedInterval(pollSimulations, 60000, true);
+    }
+
+    async function pollRollups() {
+      if (!rollupGrid) return;
+      try {
+        const res = await fetch("/api/rollups?limit=1");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.items && data.items.length > 0) {
+          const ranked = data.items.map((row) => {
+            const parsed = (() => {
+              try {
+                return JSON.parse(row.top_events_json || "[]");
+              } catch (err) {
+                return [];
+              }
+            })();
+            if (Array.isArray(parsed) && parsed.length) {
+              row.top_events_json = JSON.stringify(parsed.map((ev, idx) => ({
+                ...ev,
+                rank: idx + 1,
+              })));
+            }
+            return row;
+          });
+          renderSimulations(ranked, rollupGrid);
+          const status = document.getElementById("rollup-status");
+          if (status) {
+            const latest = data.items[0];
+            const rollupTime = latest && latest.rollup_date ? latest.rollup_date : "未知时间";
+            const batchId = latest && latest.event_batch_id ? latest.event_batch_id : "";
+            status.textContent = batchId ? `最近总推断：${rollupTime}｜批次 ${batchId}` : `最近总推断：${rollupTime}`;
+          }
+        }
+      } catch (err) {
+        // silent
+      }
+    }
+
+    if (rollupGrid && rollupGrid.querySelector(".sim-loading")) {
+      startManagedInterval(pollRollups, 90000, true);
+    }
+
+    function escHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    async function openTrace(eventId, batchId) {
+      if (!traceModal || !traceTimeline || !traceCounts || !traceTitle || !traceSubtitle) return;
+      traceTitle.textContent = "AGI 链路详情";
+      traceSubtitle.textContent = "读取中…";
+      traceCounts.innerHTML = "";
+      traceTimeline.innerHTML = '<div class="muted">读取中…</div>';
+      openTraceModal();
+
+      try {
+        const qs = new URLSearchParams();
+        if (eventId) qs.set("event_id", eventId);
+        if (batchId) qs.set("batch_id", batchId);
+        const res = await fetch(`/api/event_trace?${qs.toString()}`);
+        if (!res.ok) throw new Error("bad status");
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.reason || "trace failed");
+
+        traceTitle.textContent = "AGI 链路详情";
+        traceSubtitle.textContent = `事件ID：${data.event_id || "--"} ｜ 批次ID：${data.batch_id || "--"}`;
+        const c = data.counts || {};
+        traceCounts.innerHTML = `
+          <div class="sim-stat-card"><div class="sim-stat-label">分推演</div><div class="sim-stat-value">${c.simulations || 0}</div></div>
+          <div class="sim-stat-card"><div class="sim-stat-label">总推断</div><div class="sim-stat-value">${c.rollups || 0}</div></div>
+          <div class="sim-stat-card"><div class="sim-stat-label">选股快照</div><div class="sim-stat-value">${c.picks || 0}</div></div>
+          <div class="sim-stat-card"><div class="sim-stat-label">复盘记录</div><div class="sim-stat-value">${c.reviews || 0}</div></div>
+        `;
+
+        const timeline = Array.isArray(data.timeline) ? data.timeline : [];
+        if (!timeline.length) {
+          traceTimeline.innerHTML = '<div class="muted">暂无关联链路</div>';
+        } else {
+          traceTimeline.innerHTML = timeline.map((x) => `
+            <div class="top-event-card">
+              <div class="top-event-title">${escHtml(x.title || "未命名")}</div>
+              <div class="top-event-meta">
+                <span>阶段 ${escHtml(x.stage || "--")}</span>
+                <span>日期 ${escHtml(x.date || "--")}</span>
+                ${x.confidence !== null && x.confidence !== undefined ? `<span>数值 ${escHtml(x.confidence)}</span>` : ""}
+              </div>
+            </div>
+          `).join("");
+        }
+      } catch (err) {
+        traceSubtitle.textContent = "链路读取失败";
+        traceTimeline.innerHTML = `<div class="muted">${escHtml(err && err.message ? err.message : "未知错误")}</div>`;
+      }
+    }
+
+    function bindTraceChips() {
+      document.querySelectorAll(".js-trace-chip").forEach((chip) => {
+        chip.onclick = () => {
+          const eventId = chip.dataset.eventId || "";
+          const batchId = chip.dataset.batchId || "";
+          if (!eventId && !batchId) return;
+          openTrace(eventId, batchId);
+        };
+      });
+    }
+    bindTraceChips();
+
+    (function settleSkeleton() {
+      const skeleton = document.getElementById("page-skeleton");
+      if (!skeleton) return;
+      const active = !skeleton.classList.contains("hidden");
+      if (!active) return;
+      const finish = () => {
+        skeleton.classList.add("page-skeleton-exit");
+        setTimeout(() => skeleton.classList.add("hidden"), 260);
+        try {
+          sessionStorage.removeItem("next_page_skeleton");
+        } catch (err) {
+          // ignore
+        }
+        document.body.classList.remove("page-enter");
+      };
+      if (document.readyState === "complete") {
+        setTimeout(finish, 220);
+      } else {
+        window.addEventListener("load", () => setTimeout(finish, 220), { once: true });
+      }
+    })();
+
+    async function loadQuotes() {
+      try {
+        const cacheKey = "us_indices_cache";
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            const items = parsed.items || {};
+            const dji = document.getElementById("q-dji");
+            const spx = document.getElementById("q-spx");
+            const ndx = document.getElementById("q-ndx");
+            if (dji) dji.textContent = `道琼斯 ${items[".DJI"] ?? "--"}`;
+            if (spx) spx.textContent = `标普500 ${items[".INX"] ?? "--"}`;
+            if (ndx) ndx.textContent = `纳斯达克100 ${items[".NDX"] ?? "--"}`;
+          } catch (err) {
+            // ignore
+          }
+        }
+        const resp = await fetch("/api/us_indices");
+        const data = await resp.json();
+        const dji = document.getElementById("q-dji");
+        const spx = document.getElementById("q-spx");
+        const ndx = document.getElementById("q-ndx");
+        const loading = document.getElementById("quotes-loading");
+        const items = data.items || {};
+        if (dji) {
+          dji.textContent = `道琼斯 ${items[".DJI"] ?? "--"}`;
+          dji.classList.remove("skeleton");
+        }
+        if (spx) {
+          spx.textContent = `标普500 ${items[".INX"] ?? "--"}`;
+          spx.classList.remove("skeleton");
+        }
+        if (ndx) {
+          ndx.textContent = `纳斯达克100 ${items[".NDX"] ?? "--"}`;
+          ndx.classList.remove("skeleton");
+        }
+        if (loading) loading.classList.add("hidden");
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({ items, ts: Date.now() }));
+        } catch (err) {
+          // ignore
+        }
+      } catch (err) {
+        const loading = document.getElementById("quotes-loading");
+        if (loading) loading.textContent = "行情获取失败";
+        const dji = document.getElementById("q-dji");
+        const spx = document.getElementById("q-spx");
+        const ndx = document.getElementById("q-ndx");
+        if (dji) dji.classList.remove("skeleton");
+        if (spx) spx.classList.remove("skeleton");
+        if (ndx) ndx.classList.remove("skeleton");
+      }
+    }
+    function renderCnQuotes(items) {
+      const box = document.getElementById("cn-quotes");
+      if (!box) return;
+      const labelMap = {
+        SH000001: "上证指数",
+        SZ399001: "深证成指",
+        SZ399006: "创业板指",
+        SH000688: "科创50",
+      };
+      const symbols = Object.keys(items || {});
+      if (!symbols.length) {
+        box.innerHTML = '<span class="chip">暂无数据</span>';
+        return;
+      }
+      box.innerHTML = "";
+      symbols.forEach((sym) => {
+        const price = items[sym];
+        const label = labelMap[sym] || sym;
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        chip.textContent = `${label} ${price ?? "--"}`;
+        box.appendChild(chip);
+      });
+    }
+
+    async function loadCnQuotes(symbols) {
+      try {
+        const sym = symbols || "SH000001,SZ399001,SZ399006,SH000688";
+        const cacheKey = `cn_quotes_${sym}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            renderCnQuotes(JSON.parse(cached));
+          } catch (err) {
+            // ignore
+          }
+        }
+        const resp = await fetch(`/api/cn_quotes?symbols=${encodeURIComponent(sym)}`, { cache: "no-store" });
+        if (!resp.ok) {
+          setTimeout(() => loadCnQuotes(sym), 10000);
+          return;
+        }
+        const data = await resp.json();
+        if (data.error) {
+          setTimeout(() => loadCnQuotes(sym), 10000);
+          return;
+        }
+        const items = (data.items && typeof data.items === "object") ? data.items : {};
+        renderCnQuotes(items);
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(items));
+        } catch (err) {
+          // ignore
+        }
+      } catch (err) {
+        setTimeout(() => loadCnQuotes("SH000001,SZ399001,SZ399006,SH000688"), 10000);
+      }
+    }
+    async function callAdminRun(endpoint, successText) {
+      const statusEl = document.getElementById("admin-run-status");
+      if (statusEl) statusEl.textContent = "执行中…";
+      try {
+        const res = await fetch(endpoint, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          const reason = data && data.reason ? data.reason : "触发失败";
+          if (statusEl) statusEl.textContent = `失败：${reason}`;
+          return;
+        }
+        if (statusEl) {
+          if ((data.count || 0) === 0 && data.reason) {
+            statusEl.textContent = `未更新：${data.reason}`;
+          } else {
+            statusEl.textContent = `${successText}（${new Date().toLocaleTimeString()}）`;
+          }
+        }
+        if (endpoint.includes("/simulate")) pollSimulations();
+        if (endpoint.includes("/rollup")) pollRollups();
+        if (endpoint.includes("/pick/run")) window.location.reload();
+      } catch (err) {
+        if (statusEl) statusEl.textContent = "失败：网络错误";
+      }
+    }
+
+    const adminRunSim = document.getElementById("admin-run-sim");
+    const adminRunRollup = document.getElementById("admin-run-rollup");
+    const adminRunPick = document.getElementById("admin-run-pick");
+    const adminRunReview = document.getElementById("admin-run-review");
+    const adminRunPriceSnapshot = document.getElementById("admin-run-price-snapshot");
+    const adminGenerateWechatPick = document.getElementById("admin-generate-wechat-pick");
+    const adminGenerateWechatEvent = document.getElementById("admin-generate-wechat-event");
+    const adminDraftPanel = document.getElementById("admin-draft-panel");
+    const adminDraftOutput = document.getElementById("admin-draft-output");
+    if (adminRunSim) adminRunSim.addEventListener("click", () => callAdminRun("/api/simulate", "分推演已触发"));
+    if (adminRunRollup) adminRunRollup.addEventListener("click", () => callAdminRun("/api/rollup", "总推断已触发"));
+    if (adminRunPick) adminRunPick.addEventListener("click", () => callAdminRun("/api/pick/run?force=1", "选股已触发"));
+    if (adminRunReview) adminRunReview.addEventListener("click", () => callAdminRun("/api/review/run", "复盘已触发"));
+    if (adminRunPriceSnapshot) adminRunPriceSnapshot.addEventListener("click", () => callAdminRun("/api/price_snapshot/run", "价格快照已抓取"));
+
+    const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const enablePointerFx = !prefersReduced && window.innerWidth >= 1280;
+
+    if (enablePointerFx) {
+      document.querySelectorAll(".sim-page .hero-card").forEach((card, index) => {
+        if (index > 1) return;
+        card.addEventListener("mousemove", (event) => {
+          const rect = card.getBoundingClientRect();
+          const x = ((event.clientX - rect.left) / rect.width) * 100;
+          const y = ((event.clientY - rect.top) / rect.height) * 100;
+          card.style.setProperty("--mx", `${Math.max(0, Math.min(100, x))}%`);
+          card.style.setProperty("--my", `${Math.max(0, Math.min(100, y))}%`);
+        });
+        card.addEventListener("mouseleave", () => {
+          card.style.setProperty("--mx", "50%");
+          card.style.setProperty("--my", "50%");
+        });
+      });
+
+      document.querySelectorAll(".sim-page .parallax-card:not(.hero-floating)").forEach((card, index) => {
+        if (index > 1) return;
+        card.addEventListener("mousemove", (event) => {
+          const rect = card.getBoundingClientRect();
+          const dx = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
+          const dy = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
+          card.style.setProperty("--tilt-y", `${Math.max(Math.min(dx * 1.8, 1.8), -1.8)}deg`);
+          card.style.setProperty("--tilt-x", `${Math.max(Math.min(-dy * 1.2, 1.2), -1.2)}deg`);
+        });
+        card.addEventListener("mouseleave", () => {
+          card.style.setProperty("--tilt-x", "0deg");
+          card.style.setProperty("--tilt-y", "0deg");
+        });
+      });
+    }
+
+    if (!prefersReduced) {
+      const parallaxCards = Array.from(document.querySelectorAll(".sim-page .parallax-card"));
+      const revealEls = Array.from(document.querySelectorAll(".sim-page .reveal"));
+      const titleEls = Array.from(document.querySelectorAll(".sim-page .title-anim"));
+      const visible = new Set();
+      let ticking = false;
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            visible.add(entry.target);
+            entry.target.classList.add("in-view");
+          } else {
+            visible.delete(entry.target);
+            entry.target.style.setProperty("--parallax-y", "0px");
+            entry.target.style.setProperty("--tilt-x", "0deg");
+            entry.target.style.setProperty("--tilt-y", "0deg");
+          }
+        });
+      }, { threshold: 0.12 });
+
+      parallaxCards.forEach((card) => observer.observe(card));
+      revealEls.forEach((el) => observer.observe(el));
+      titleEls.forEach((el) => observer.observe(el));
+
+      function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          visible.forEach((card) => {
+            if (!card.classList.contains("parallax-card")) return;
+            const rect = card.getBoundingClientRect();
+            const center = rect.top + rect.height / 2;
+            const viewport = window.innerHeight;
+            const offset = (center - viewport / 2) / viewport;
+            const translate = Math.max(Math.min(offset * 12, 8), -8);
+            card.style.setProperty("--parallax-y", `${translate}px`);
+          });
+          ticking = false;
+        });
+      }
+
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onScroll);
+      onScroll();
+    }
+  </script>
+{% endblock %}
+
+
+    async function loadWechatDraft(kind) {
+      const statusEl = document.getElementById("admin-run-status");
+      if (statusEl) statusEl.textContent = "?????????...";
+      try {
+        const res = await fetch(`/api/wechat_draft?kind=${encodeURIComponent(kind)}`, { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          const reason = data && data.reason ? data.reason : "????";
+          if (statusEl) statusEl.textContent = `???${reason}`;
+          return;
+        }
+        if (adminDraftOutput) adminDraftOutput.value = data.draft || "";
+        if (adminDraftPanel) adminDraftPanel.classList.remove("hidden");
+        if (statusEl) statusEl.textContent = `?????????${new Date().toLocaleTimeString()}`;
+      } catch (err) {
+        if (statusEl) statusEl.textContent = "???????";
+      }
+    }
+
+    if (adminGenerateWechatPick) adminGenerateWechatPick.addEventListener("click", () => loadWechatDraft("pick"));
+    if (adminGenerateWechatEvent) adminGenerateWechatEvent.addEventListener("click", () => loadWechatDraft("event"));

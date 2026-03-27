@@ -1,0 +1,468 @@
+{% extends "base.html" %}
+{% macro render_impact_items(impact_map) -%}
+  <div class="sim-impact-grid">
+    {% if impact_map.macro %}
+      <div class="sim-impact-item">
+        <span class="sim-impact-label">宏观</span>
+        <span class="sim-impact-value">{{ impact_map.macro }}</span>
+      </div>
+    {% endif %}
+    {% if impact_map.industry %}
+      <div class="sim-impact-item">
+        <span class="sim-impact-label">行业</span>
+        <span class="sim-impact-value">{{ impact_map.industry }}</span>
+      </div>
+    {% endif %}
+    {% if impact_map.assets %}
+      <div class="sim-impact-item">
+        <span class="sim-impact-label">资产</span>
+        <span class="sim-impact-value">{{ impact_map.assets }}</span>
+      </div>
+    {% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro render_mapping_card(item) -%}
+  <article class="thesis-mapping-item">
+    <div class="thesis-mapping-head">
+      <div>
+        <div class="thesis-mapping-ticker">{{ item.ticker }}</div>
+        {% if item.name %}
+          <div class="thesis-mapping-name">{{ item.name }}</div>
+        {% endif %}
+      </div>
+      {% if item.target_position_pct %}
+        <span class="thesis-mapping-weight">{{ "%.1f"|format(item.target_position_pct * 100) }}%</span>
+      {% endif %}
+    </div>
+    <div class="thesis-chip-row">
+      {% if item.theme %}
+        <span class="thesis-chip">{{ item.theme }}</span>
+      {% endif %}
+      {% if item.role %}
+        <span class="thesis-chip thesis-chip-accent">{{ item.role }}</span>
+      {% endif %}
+    </div>
+    {% if item.why_selected %}
+      <p class="thesis-mapping-copy">{{ item.why_selected }}</p>
+    {% endif %}
+    <div class="thesis-mapping-stack">
+      {% if item.business_summary %}
+        <div class="thesis-mapping-line"><strong>业务</strong><span>{{ item.business_summary }}</span></div>
+      {% endif %}
+      {% if item.research_view %}
+        <div class="thesis-mapping-line"><strong>研报</strong><span>{{ item.research_view }}</span></div>
+      {% endif %}
+      {% if item.fundamental_hint %}
+        <div class="thesis-mapping-line"><strong>财报</strong><span>{{ item.fundamental_hint }}</span></div>
+      {% endif %}
+    </div>
+      {% if item.pick_score is not none or item.research_score_bonus or item.chain_business_bonus %}
+      <div class="thesis-chip-row thesis-chip-row-tight">
+        {% if item.pick_score is not none %}
+          <span class="thesis-chip">Score {{ item.pick_score }}</span>
+        {% endif %}
+        {% if item.research_score_bonus %}
+          <span class="thesis-chip">研报 +{{ item.research_score_bonus }}</span>
+        {% endif %}
+        {% if item.chain_business_bonus %}
+          <span class="thesis-chip">链路 +{{ item.chain_business_bonus }}</span>
+        {% endif %}
+        {% if item.theme_direction_bonus %}
+          <span class="thesis-chip">方向 {{ "%+.1f"|format(item.theme_direction_bonus) }}</span>
+        {% endif %}
+      </div>
+    {% endif %}
+  </article>
+{%- endmacro %}
+
+{% macro render_evidence_group(title, items) -%}
+  <section class="thesis-evidence-group">
+    <div class="thesis-subtitle">{{ title }}</div>
+    {% if items %}
+      <div class="thesis-evidence-list">
+        {% for item in items %}
+          <article class="thesis-evidence-item">
+            <div class="thesis-evidence-head">
+              <strong>{{ item.title }}</strong>
+              {% if item.source %}
+                <span>{{ item.source }}</span>
+              {% endif %}
+            </div>
+            {% if item.summary %}
+              <p>{{ item.summary }}</p>
+            {% endif %}
+            <div class="thesis-evidence-meta">
+              {% if item.published_at %}
+                <span>{{ item.published_at }}</span>
+              {% endif %}
+              {% if item.thesis_score is not none %}
+                <span>主线分 {{ item.thesis_score }}</span>
+              {% endif %}
+              {% if item.url %}
+                <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">打开来源</a>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">这一组证据还在补齐中。</div>
+    {% endif %}
+  </section>
+{%- endmacro %}
+
+{% block content %}
+  {% if engine.ok %}
+    <section class="thesis-hero hero-card glass">
+      <div class="thesis-kicker">推演引擎</div>
+      <div class="thesis-hero-grid">
+        <div class="thesis-hero-main">
+          <div class="thesis-chip-row thesis-chip-row-tight">
+            <span class="thesis-chip thesis-chip-accent">当前主线 {{ engine.hero.lead_theme }}</span>
+            <span class="thesis-chip">次主线 {{ engine.hero.secondary_theme }}</span>
+            {% if engine.horizon and engine.horizon.strategic_lead_theme %}
+              <span class="thesis-chip">中期主线 {{ engine.horizon.strategic_lead_theme }}</span>
+            {% endif %}
+            <span class="thesis-chip">状态 {{ {"active": "推演中", "validated": "已验证", "invalidated": "已失效"}.get(engine.status, "推演中") }}</span>
+            {% if engine.direction.driver %}
+              <span class="thesis-chip">方向 {{ engine.direction.driver }}</span>
+            {% endif %}
+          </div>
+          <h1 class="thesis-title">{{ engine.hero.title }}</h1>
+          <p class="thesis-summary">{{ engine.hero.summary }}</p>
+          <div class="thesis-origin">
+            <span>起点事件：{{ engine.hero.origin_event_title }}</span>
+            <span>{{ engine.hero.origin_event_source or "--" }}</span>
+            <span>{{ engine.hero.origin_event_time or "--" }}</span>
+          </div>
+          {% set latest_rollup = rollups[0] if rollups else None %}
+          {% set latest_sim = simulations[0] if simulations else None %}
+          {% if latest_rollup or latest_sim %}
+            <div class="thesis-deep-dive-grid">
+              {% if latest_rollup %}
+                <article class="thesis-deep-card" id="latest-rollup">
+                  <div class="thesis-deep-kicker">&#24635;&#25512;&#26029;</div>
+                  <h2 class="thesis-deep-title">{{ latest_rollup.title }}</h2>
+                  <div class="thesis-chip-row thesis-chip-row-tight">
+                    <span class="thesis-chip">&#25209;&#27425; {{ latest_rollup.event_batch_id or "--" }}</span>
+                    <span class="thesis-chip">&#21457;&#37237;&#39044;&#20272; {% if latest_rollup.ferment_days %}{{ latest_rollup.ferment_days }} &#22825;{% else %}&#24453;&#23450;{% endif %}</span>
+                  </div>
+                  <div class="thesis-deep-copy">{{ latest_rollup.narrative or "&#24635;&#25512;&#26029;&#29983;&#25104;&#20013;&#8230;" }}</div>
+                  <div class="thesis-deep-section">
+                    <div class="thesis-subtitle">&#24433;&#21709;&#22320;&#22270;</div>
+                    <div class="thesis-deep-impact-grid">
+                      {% if latest_rollup.impact_map_obj %}
+                        {{ render_impact_items(latest_rollup.impact_map_obj) }}
+                      {% else %}
+                        <div class="empty">&#24635;&#25512;&#26029;&#24433;&#21709;&#22320;&#22270;&#36824;&#22312;&#34917;&#40784;&#12290;</div>
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="thesis-deep-split">
+                    <div class="thesis-deep-section">
+                      <div class="thesis-subtitle">&#20027;&#32447;&#38142;&#36335;</div>
+                      {% if latest_rollup.chain_list and not latest_rollup.chain_fallback_from_sim %}
+                      <div class="thesis-chip-row thesis-chip-row-tight">
+                        {% if latest_rollup.chain_list %}
+                          {% for link in latest_rollup.chain_list %}
+                            <span class="thesis-chip">{{ link }}</span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="thesis-chip">&#24453;&#29983;&#25104;</span>
+                        {% endif %}
+                      </div>
+                      {% elif latest_rollup.chain_fallback_from_sim %}
+                      <div class="empty">&#20027;&#32447;&#38142;&#36335;&#24050;&#22312;&#19979;&#26041;&#20107;&#20214;&#25512;&#28436;&#20013;&#23637;&#24320;&#65292;&#27492;&#22788;&#19981;&#20877;&#37325;&#22797;&#12290;</div>
+                      {% else %}
+                      <div class="thesis-chip-row thesis-chip-row-tight">
+                        <span class="thesis-chip">&#24453;&#29983;&#25104;</span>
+                      </div>
+                      {% endif %}
+                    </div>
+                    <div class="thesis-deep-section">
+                      <div class="thesis-subtitle">&#26410;&#26469;&#26368;&#22823;&#24433;&#21709;&#20107;&#20214;</div>
+                      <div class="thesis-deep-list">
+                        {% if latest_rollup.top_events_list and not latest_rollup.top_events_fallback_from_sim %}
+                          {% for event in latest_rollup.top_events_list[:3] %}
+                            <div class="thesis-deep-list-item">
+                              <strong>{{ event.title or event.event_id or "&#24453;&#34917;&#20805;&#20107;&#20214;" }}</strong>
+                              {% if event.sim_date %}<span>{{ event.sim_date }}</span>{% endif %}
+                            </div>
+                          {% endfor %}
+                        {% elif latest_rollup.top_events_fallback_from_sim %}
+                          <div class="empty">&#20851;&#38190;&#20107;&#20214;&#24050;&#22312;&#19979;&#26041;&#20107;&#20214;&#25512;&#28436;&#20013;&#23637;&#24320;&#65292;&#27492;&#22788;&#19981;&#20877;&#37325;&#22797;&#12290;</div>
+                        {% else %}
+                          <div class="empty">&#26410;&#26469;&#26368;&#22823;&#24433;&#21709;&#20107;&#20214;&#36824;&#22312;&#34917;&#40784;&#12290;</div>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="thesis-deep-section">
+                    <div class="thesis-subtitle">&#39118;&#38505;&#21028;&#26029;</div>
+                    <div class="thesis-risk-box">{{ latest_rollup.risk_outlook or "&#24453;&#23450;" }}</div>
+                  </div>
+                </article>
+              {% endif %}
+              {% if latest_sim %}
+                <article class="thesis-deep-card thesis-deep-card-accent" id="latest-simulation">
+                  <div class="thesis-deep-kicker">&#20107;&#20214;&#25512;&#28436;</div>
+                  <h2 class="thesis-deep-title">{{ latest_sim.title }}</h2>
+                  <div class="thesis-chip-row thesis-chip-row-tight">
+                    <span class="thesis-chip">&#20107;&#20214; {{ latest_sim.event_id or "--" }}</span>
+                    <span class="thesis-chip">&#25209;&#27425; {{ latest_sim.event_batch_id or "--" }}</span>
+                    <span class="thesis-chip">&#21457;&#37237;&#21608;&#26399; {% if latest_sim.hype_days %}{{ latest_sim.hype_days }} &#22825;{% else %}&#24453;&#23450;{% endif %}</span>
+                  </div>
+                  <div class="thesis-deep-copy">{{ latest_sim.narrative or "&#20107;&#20214;&#25512;&#28436;&#29983;&#25104;&#20013;&#8230;" }}</div>
+                  <div class="thesis-deep-section">
+                    <div class="thesis-subtitle">&#24433;&#21709;&#22320;&#22270;</div>
+                    <div class="thesis-deep-impact-grid">
+                      {% if latest_sim.impact_map_obj %}
+                        {{ render_impact_items(latest_sim.impact_map_obj) }}
+                      {% else %}
+                        <div class="empty">&#20107;&#20214;&#25512;&#28436;&#24433;&#21709;&#22320;&#22270;&#36824;&#22312;&#34917;&#40784;&#12290;</div>
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="thesis-deep-split">
+                    <div class="thesis-deep-section">
+                      <div class="thesis-subtitle">&#22240;&#26524;&#38142;</div>
+                      <div class="thesis-chip-row thesis-chip-row-tight">
+                        {% if latest_sim.chain_list %}
+                          {% for link in latest_sim.chain_list %}
+                            <span class="thesis-chip">{{ link }}</span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="thesis-chip">&#24453;&#29983;&#25104;</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                    <div class="thesis-deep-section">
+                      <div class="thesis-subtitle">&#32467;&#35770;&#26631;&#31614;</div>
+                      <div class="thesis-chip-row thesis-chip-row-tight">
+                        {% if latest_sim.bias_tags_list %}
+                          {% for tag in latest_sim.bias_tags_list %}
+                            <span class="thesis-chip thesis-chip-accent">{{ tag }}</span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="thesis-chip">&#24453;&#29983;&#25104;</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="thesis-deep-section">
+                    <div class="thesis-subtitle">&#39118;&#38505;&#21028;&#26029;</div>
+                    <div class="thesis-risk-box">{{ latest_sim.risk_outlook or "&#24453;&#23450;" }}</div>
+                  </div>
+                </article>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+        <div class="thesis-hero-side">
+          <div class="thesis-stat-card">
+            <div class="thesis-stat-label">推演置信度</div>
+            <div class="thesis-stat-value">
+              {% if engine.confidence is not none %}
+                {{ "%.0f"|format(engine.confidence * 100 if engine.confidence <= 1 else engine.confidence) }}%
+              {% else %}
+                --
+              {% endif %}
+            </div>
+          </div>
+          {% if engine.meta.notes %}
+            <div class="thesis-note-box">
+              <div class="thesis-subtitle">辅助提示</div>
+              <div class="thesis-chip-row thesis-chip-row-tight">
+                {% for note in engine.meta.notes %}
+                  <span class="thesis-chip">{{ note }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+          {% if engine.competition and engine.competition.lead_theme %}
+            <div class="thesis-note-box">
+              <div class="thesis-subtitle">主线竞争</div>
+              <div class="thesis-chip-row thesis-chip-row-tight">
+                <span class="thesis-chip thesis-chip-accent">胜出 {{ engine.competition.lead_theme }}</span>
+                {% if engine.competition.secondary_theme %}
+                  <span class="thesis-chip">次线 {{ engine.competition.secondary_theme }}</span>
+                {% endif %}
+                <span class="thesis-chip">差值 {{ engine.competition.competition_gap or 0 }}</span>
+              </div>
+              {% if engine.competition.winner_reason %}
+                <p class="thesis-mini-note">主线胜出原因：{{ engine.competition.winner_reason }}</p>
+              {% endif %}
+              {% if engine.competition.runner_reason %}
+                <p class="thesis-mini-note">次主线落败原因：{{ engine.competition.runner_reason }}</p>
+              {% endif %}
+              {% if engine.competition.decisive_event_title %}
+                <p class="thesis-mini-note">决胜新闻：{{ engine.competition.decisive_event_title }}</p>
+              {% endif %}
+            </div>
+          {% endif %}
+          {% if engine.horizon and engine.horizon.summary %}
+            <div class="thesis-note-box">
+              <div class="thesis-subtitle">双主线结构</div>
+              <p class="thesis-mini-note">{{ engine.horizon.summary }}</p>
+              {% if engine.horizon.strategic_reason %}
+                <p class="thesis-mini-note">中期主线原因：{{ engine.horizon.strategic_reason }}</p>
+              {% endif %}
+            </div>
+          {% endif %}
+          {% if engine.event_cluster and engine.event_cluster.summary %}
+            <div class="thesis-note-box">
+              <div class="thesis-subtitle">事件聚类</div>
+              <p class="thesis-mini-note">{{ engine.event_cluster.summary }}</p>
+            </div>
+          {% endif %}
+          {% if engine.crowding and engine.crowding.summary %}
+            <div class="thesis-note-box">
+              <div class="thesis-subtitle">市场拥挤度</div>
+              <p class="thesis-mini-note">{{ engine.crowding.summary }}</p>
+              {% if engine.crowding.reason %}
+                <p class="thesis-mini-note">{{ engine.crowding.reason }}</p>
+              {% endif %}
+            </div>
+          {% endif %}
+          {% if engine.regime_shift and engine.regime_shift.summary %}
+            <div class="thesis-note-box">
+              <div class="thesis-subtitle">情景切换监控</div>
+              <p class="thesis-mini-note">{{ engine.regime_shift.summary }}</p>
+              {% if engine.regime_shift.reasons %}
+                <p class="thesis-mini-note">{{ engine.regime_shift.reasons | join(" / ") }}</p>
+              {% endif %}
+            </div>
+          {% endif %}
+          {% if engine.direction.winner_sides or engine.direction.loser_sides %}
+            <div class="thesis-note-box">
+              <div class="thesis-subtitle">赢家 / 输家侧</div>
+              <div class="thesis-chip-row thesis-chip-row-tight">
+                {% for side in engine.direction.winner_sides or [] %}
+                  <span class="thesis-chip thesis-chip-accent">赢家 {{ side }}</span>
+                {% endfor %}
+                {% for side in engine.direction.loser_sides or [] %}
+                  <span class="thesis-chip">回避 {{ side }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+          {% if engine.hold_management and engine.hold_management.summary %}
+            <div class="thesis-note-box">
+              <div class="thesis-subtitle">动态持仓 / 卖出</div>
+              <p class="thesis-mini-note">{{ engine.hold_management.summary }}</p>
+              {% if engine.hold_management.review_after_days %}
+                <p class="thesis-mini-note">中途复核 {{ engine.hold_management.review_after_days }} 天 · 止损 {{ engine.hold_management.stop_loss_pct }}% · 止盈 {{ engine.hold_management.take_profit_pct }}%</p>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <section class="thesis-step-grid">
+      {% for step in engine.steps %}
+        <article class="hero-card glass thesis-step-card">
+          <div class="thesis-step-index">Step {{ step.step }}</div>
+          <div class="thesis-step-kicker">{{ step.kicker }}</div>
+          <h2>{{ step.title }}</h2>
+          <p>{{ step.summary }}</p>
+          {% if step.bullets %}
+            <ul class="thesis-bullets">
+              {% for bullet in step.bullets %}
+                <li>{{ bullet }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </section>
+
+    <section class="hero-card glass thesis-map-card">
+      <div class="section-title">A股映射</div>
+      <p class="muted">把事件推演落到一阶、二阶和观察名单上。重点不是票多，而是为什么它在这里。</p>
+      <div class="thesis-map-grid">
+        <div class="thesis-map-column">
+          <div class="thesis-subtitle">一阶受益</div>
+          {% if engine.mapping.first_order %}
+            {% for item in engine.mapping.first_order %}
+              {{ render_mapping_card(item) }}
+            {% endfor %}
+          {% else %}
+            <div class="empty">暂时还没有明确的一阶映射。</div>
+          {% endif %}
+        </div>
+        <div class="thesis-map-column">
+          <div class="thesis-subtitle">二阶扩散</div>
+          {% if engine.mapping.second_order %}
+            {% for item in engine.mapping.second_order %}
+              {{ render_mapping_card(item) }}
+            {% endfor %}
+          {% else %}
+            <div class="empty">暂时还没有清晰的二阶扩散。</div>
+          {% endif %}
+        </div>
+        <div class="thesis-map-column">
+          <div class="thesis-subtitle">观察名单</div>
+          {% if engine.mapping.watchlist %}
+            {% for item in engine.mapping.watchlist %}
+              {{ render_mapping_card(item) }}
+            {% endfor %}
+          {% else %}
+            <div class="empty">当前没有需要额外跟踪的观察票。</div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <section class="thesis-validation-grid">
+      <article class="hero-card glass thesis-signal-card">
+        <div class="section-title">验证信号</div>
+        {% if engine.validation.confirmations %}
+          <ul class="thesis-bullets thesis-bullets-compact">
+            {% for item in engine.validation.confirmations %}
+              <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty">暂时还没有明确验证点。</div>
+        {% endif %}
+      </article>
+      <article class="hero-card glass thesis-signal-card thesis-signal-card-risk">
+        <div class="section-title">失效信号</div>
+        {% if engine.validation.invalidations %}
+          <ul class="thesis-bullets thesis-bullets-compact">
+            {% for item in engine.validation.invalidations %}
+              <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty">当前未定义失效点。</div>
+        {% endif %}
+      </article>
+    </section>
+
+    <section class="hero-card glass thesis-evidence-card">
+      <div class="section-title">证据来源</div>
+      <p class="muted">推演不只给结论，还保留证据链，方便回看和修正。</p>
+      <div class="thesis-evidence-grid">
+        {{ render_evidence_group("起点新闻", engine.evidence.origin_news) }}
+        {{ render_evidence_group("支持新闻", engine.evidence.supporting_news) }}
+        {{ render_evidence_group("研报", engine.evidence.research_reports) }}
+        {{ render_evidence_group("业务画像", engine.evidence.business_profiles) }}
+        {{ render_evidence_group("财报弱验证", engine.evidence.fundamental_checks) }}
+      </div>
+    </section>
+  {% else %}
+    <section class="hero-card glass thesis-empty-card">
+      <div class="thesis-kicker">推演引擎</div>
+      <h1 class="thesis-title">还没有可用的推演结果</h1>
+      <p class="thesis-summary">等一轮新的 pick / simulation / rollup 生成后，这里会自动拼出主线、链路、A股映射和验证条件。</p>
+      <div class="thesis-chip-row thesis-chip-row-tight">
+        <span class="thesis-chip">先跑 pick</span>
+        <span class="thesis-chip">再看主线</span>
+        <span class="thesis-chip">最后看验证 / 失效</span>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

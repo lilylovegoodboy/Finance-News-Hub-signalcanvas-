@@ -1,0 +1,814 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="page-skeleton page-skeleton-perf hidden" id="page-skeleton">
+    <div class="page-skeleton-shell">
+      <div class="page-skeleton-row">
+        <div class="page-skeleton-card page-skeleton-card-lg">
+          <div class="skeleton-line" style="width: 32%;"></div>
+          <div class="skeleton-line" style="width: 82%;"></div>
+          <div class="skeleton-chip-row">
+            <span class="skeleton-chip"></span>
+            <span class="skeleton-chip"></span>
+            <span class="skeleton-chip"></span>
+          </div>
+          <div class="page-skeleton-chart"></div>
+        </div>
+        <div class="page-skeleton-card">
+          <div class="skeleton-line" style="width: 26%;"></div>
+          <div class="skeleton-line" style="width: 88%;"></div>
+          <div class="skeleton-line" style="width: 74%;"></div>
+          <div class="page-skeleton-metrics">
+            <span class="skeleton-chip"></span>
+            <span class="skeleton-chip"></span>
+            <span class="skeleton-chip"></span>
+            <span class="skeleton-chip"></span>
+          </div>
+        </div>
+      </div>
+      <div class="page-skeleton-card">
+        <div class="skeleton-line" style="width: 22%;"></div>
+        <div class="skeleton-line" style="width: 95%;"></div>
+        <div class="skeleton-line" style="width: 89%;"></div>
+        <div class="skeleton-line" style="width: 84%;"></div>
+      </div>
+    </div>
+  </div>
+  <section class="hero-card glass">
+    <div class="section-title">推演卡复盘</div>
+    <p class="muted">这是历史复盘统计，不是实时新闻强度面板。只有系统完成选股，并经过后续复盘窗口后，样本数、有效次数和复盘胜率才会开始累计，用来帮助后续校准出手阈值。</p>
+    {% set review_total = (signal_review_summary.action_totals.get("计划", 0) if signal_review_summary.action_totals else 0) + (signal_review_summary.action_totals.get("观察", 0) if signal_review_summary.action_totals else 0) + (signal_review_summary.action_totals.get("放弃", 0) if signal_review_summary.action_totals else 0) %}
+    {% if review_total == 0 %}
+      <p class="muted">当前还是样本积累阶段：有新闻和推演不代表这里立刻有数字，等选股走完整个复盘周期后，这里才会出现统计结果。</p>
+    {% endif %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>信号层级</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in ["high", "mid", "low"] %}
+          {% set row = signal_review_summary.buckets[key] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>动作池</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in ["plan", "observe", "avoid"] %}
+          {% set row = signal_review_summary.action_buckets[key] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>研报加分层</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in ["high", "mid", "low"] %}
+          {% set row = signal_review_summary.research_bonus_buckets[key] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>链路加分层</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in ["high", "mid", "low"] %}
+          {% set row = signal_review_summary.chain_bonus_buckets[key] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>方向加分层</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in ["high", "mid", "low"] %}
+          {% set row = signal_review_summary.direction_bonus_buckets[key] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>主线竞争情景</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in signal_review_summary.competition_rows[:4] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">暂无主线竞争情景样本。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>主线竞争层</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in ["high", "mid", "low"] %}
+          {% set row = signal_review_summary.competition_bonus_buckets[key] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>事件聚焦层</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in ["high", "mid", "low"] %}
+          {% set row = signal_review_summary.event_cluster_focus_buckets[key] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>事件聚类情景</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in signal_review_summary.event_cluster_rows[:4] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">暂无事件聚类复盘样本。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>市场拥挤度层</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in ["high", "mid", "low"] %}
+          {% set row = signal_review_summary.crowding_penalty_buckets[key] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>市场拥挤情景</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in signal_review_summary.crowding_rows[:4] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">暂无市场拥挤度复盘样本。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>情景切换层</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in ["high", "mid", "low"] %}
+          {% set row = signal_review_summary.regime_shift_buckets[key] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>情景切换情景</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in signal_review_summary.regime_rows[:4] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">暂无情景切换复盘样本。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>自动权重微调</th>
+          <th>当前缩放</th>
+          <th>复盘基线</th>
+          <th>样本数</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set lm = signal_review_summary.learning_memory or {} %}
+        {% set scales = lm.bonus_scales or {} %}
+        {% for item in [("研报", scales.research or 1), ("链路", scales.chain or 1), ("方向", scales.direction or 1), ("主线竞争", scales.competition or 1)] %}
+          <tr>
+            <td>{{ item[0] }}</td>
+            <td>x{{ item[1] }}</td>
+            <td>{{ "%.1f"|format(lm.baseline_win_rate) if lm.baseline_win_rate is not none else "--" }}{% if lm.baseline_win_rate is not none %}%{% endif %}</td>
+            <td>{{ lm.sample_count or 0 }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>误判榜</th>
+          <th>样本数</th>
+          <th>复盘胜率</th>
+          <th>惩罚</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in signal_review_summary.misjudgment_rows[:5] %}
+          <tr>
+            <td>{{ row.kind }} / {{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+            <td>{{ row.penalty_bias }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">暂无误判样本</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>方向情景</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in signal_review_summary.direction_rows[:4] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">暂无方向情景复盘样本。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>推演路径</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in signal_review_summary.impact_path_rows[:4] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">暂无推演路径复盘样本。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>失效条件</th>
+          <th>样本数</th>
+          <th>有效次数</th>
+          <th>复盘胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in signal_review_summary.invalidation_rows[:4] %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.effective }}</td>
+            <td>{{ "%.1f"|format(row.win_rate) if row.win_rate is not none else "--" }}{% if row.win_rate is not none %}%{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">暂无失效条件复盘样本。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="height:12px;"></div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>错杀日期</th>
+          <th>股票</th>
+          <th>主题</th>
+          <th>14天收益</th>
+          <th>相对入选超额</th>
+          <th>筛掉原因</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in filtered_candidate_review.missed_rows %}
+          <tr>
+            <td>{{ row.pick_date }}</td>
+            <td>{{ row.ticker }}</td>
+            <td>{{ row.theme or "--" }}</td>
+            <td>{{ row.return_pct }}%</td>
+            <td>{{ row.edge_pct if row.edge_pct is not none else "--" }}{% if row.edge_pct is not none %}%{% endif %}</td>
+            <td>
+              {% if row.fundamental_score is not none %}F-score {{ row.fundamental_score }}{% endif %}
+              {% if row.fundamental_filter_reason %}{% if row.fundamental_score is not none %} / {% endif %}{{ row.fundamental_filter_reason }}{% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">暂时还没有明显错杀样本。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <section class="hero-card glass">
+    <div class="section-title">财报硬筛复盘</div>
+    <p class="muted">
+      对比“最终入选候选”和“被财报硬筛掉的候选”在 {{ filtered_candidate_review.horizon_days }} 天后的平均表现，
+      看硬筛规则是在减少踩雷，还是在错杀机会。
+    </p>
+    <div class="metric-grid">
+      <div class="metric">
+        <div class="metric-label">有效批次</div>
+        <div class="metric-value">{{ filtered_candidate_review.count }}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">入选平均收益</div>
+        <div class="metric-value">
+          {% if filtered_candidate_review.selected_avg_return_pct is not none %}
+            {{ filtered_candidate_review.selected_avg_return_pct }}%
+          {% else %}
+            --
+          {% endif %}
+        </div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">筛掉平均收益</div>
+        <div class="metric-value">
+          {% if filtered_candidate_review.filtered_avg_return_pct is not none %}
+            {{ filtered_candidate_review.filtered_avg_return_pct }}%
+          {% else %}
+            --
+          {% endif %}
+        </div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">入选跑赢占比</div>
+        <div class="metric-value">
+          {% if filtered_candidate_review.outperform_rate is not none %}
+            {{ filtered_candidate_review.outperform_rate }}%
+          {% else %}
+            --
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>批次</th>
+          <th>入选样本</th>
+          <th>筛掉样本</th>
+          <th>入选平均收益</th>
+          <th>筛掉平均收益</th>
+          <th>领先幅度</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in filtered_candidate_review.rows %}
+          <tr>
+            <td>{{ row.pick_date }}</td>
+            <td>{{ row.selected_count }}</td>
+            <td>{{ row.filtered_count }}</td>
+            <td>{{ row.selected_avg_return_pct if row.selected_avg_return_pct is not none else "--" }}{% if row.selected_avg_return_pct is not none %}%{% endif %}</td>
+            <td>{{ row.filtered_avg_return_pct if row.filtered_avg_return_pct is not none else "--" }}{% if row.filtered_avg_return_pct is not none %}%{% endif %}</td>
+            <td>{{ row.edge_pct if row.edge_pct is not none else "--" }}{% if row.edge_pct is not none %}%{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">暂无足够样本评估财报硬筛效果。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <script>
+    (function() {
+      try {
+        if (sessionStorage.getItem("next_page_skeleton") === window.location.pathname) {
+          const skeleton = document.getElementById("page-skeleton");
+          if (skeleton) skeleton.classList.remove("hidden");
+          document.body.classList.add("page-enter");
+        }
+      } catch (err) {
+        // ignore
+      }
+    })();
+  </script>
+  <section class="hero">
+    <div class="hero-card glass">
+      <h1>成绩细节</h1>
+      <p>这里展示消息驱动模拟投资的核心表现、价格口径与阶段性快照，方便快速判断这套系统当前是否在用真实价格跟踪。</p>
+      <div class="hero-actions">
+        <span class="pill">回测周期 90 天</span>
+        <span class="pill">初始资金 ¥{{ initial_cash }}</span>
+        {% if pick_date %}
+          <span class="pill">当前策略批次 {{ pick_date }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="hero-card glass">
+      <div class="section-title">关键指标</div>
+      <div class="metric-grid">
+        <div class="metric">
+          <div class="metric-label">累计收益</div>
+          <div class="metric-value">{{ return_pct }}%</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">最大回撤</div>
+          <div class="metric-value">{{ drawdown }}%</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">胜率</div>
+          <div class="metric-value">{{ win_rate }}%</div>
+        </div>
+      </div>
+      <p class="muted">
+        价格快照 {{ price_snapshot_status.count or 0 }} 条
+        ｜建仓 {{ price_snapshot_status.entry_count or 0 }} 条
+        ｜收盘 {{ price_snapshot_status.close_count or 0 }} 条
+        {% if price_snapshot_status.latest_at %}｜最近更新 {{ price_snapshot_status.latest_at }}{% endif %}
+      </p>
+      <p class="muted">指标口径：{{ "实时快照" if performance_data_mode == "snapshot" else "估算回测" }}</p>
+      {% if snapshots %}
+        <p class="muted">最近成绩快照：{{ snapshots[0].snapshot_date }}</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="hero-card glass">
+    <div class="section-title">收益曲线</div>
+    <div class="chart-wrap">
+      <svg viewBox="0 0 1000 240" class="line-chart" aria-label="equity curve">
+        <polyline fill="none" stroke="#0071e3" stroke-width="3" points="{{ points }}" />
+      </svg>
+      <div class="chart-meta">
+        <span>起始：¥{{ initial_cash }}</span>
+        <span>当前：¥{{ final_value }}</span>
+        <span>累计收益：{{ return_pct }}%</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="hero-card glass">
+    <div class="section-title">持仓概览</div>
+    <p class="muted">优先使用真实价格快照展示建仓价与最新价；暂无快照时才使用估算价格。</p>
+    <table class="table" id="performance-holdings-table" data-pick-date="{{ pick_date or '' }}">
+      <thead>
+        <tr>
+          <th>股票</th>
+          <th>轨迹</th>
+          <th>买入价</th>
+          <th>当前价</th>
+          <th>盈亏</th>
+          <th>价格来源</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in holdings %}
+          <tr data-ticker="{{ row.ticker }}">
+            <td data-label="股票">
+              <div>{{ row.ticker }}</div>
+              {% if row.target_position_pct is not none or row.pick_score is not none or (row.fundamental_card and row.fundamental_card.fundamental_score is not none) %}
+                <div class="holding-insight-strip">
+                  {% if row.target_position_pct is not none %}
+                    <span class="holding-insight-badge is-allocation">建议分仓 {{ (row.target_position_pct * 100) | round(1) }}%</span>
+                  {% endif %}
+                  {% if row.pick_score is not none %}
+                    <span class="holding-insight-badge is-score">候选分数 {{ row.pick_score }}</span>
+                  {% endif %}
+                  {% if row.fundamental_card and row.fundamental_card.fundamental_score is not none %}
+                    <span class="holding-insight-badge is-score">F-score {{ row.fundamental_card.fundamental_score }}</span>
+                  {% endif %}
+                </div>
+              {% endif %}
+              {% if row.fundamental_card and row.fundamental_card.metrics %}
+                <div class="muted">
+                  {% if row.theme %}{{ row.theme }}{% endif %}
+                  {% if row.fundamental_card.metrics.roe is not none %}{% if row.theme %} / {% endif %}ROE {{ row.fundamental_card.metrics.roe }}%{% endif %}
+                  {% if row.fundamental_card.metrics.debt_ratio is not none %} / Debt {{ row.fundamental_card.metrics.debt_ratio }}%{% endif %}
+                  {% if row.fundamental_card.metrics.revenue_delta_pct is not none %} / Rev {{ row.fundamental_card.metrics.revenue_delta_pct }}%{% endif %}
+                  {% if row.fundamental_card.metrics.profit_delta_pct is not none %} / NP {{ row.fundamental_card.metrics.profit_delta_pct }}%{% endif %}
+                </div>
+              {% endif %}
+              {% if row.fundamental_card and row.fundamental_card.highlights %}
+                <div class="muted">亮点：{{ row.fundamental_card.highlights | join("; ") }}</div>
+              {% endif %}
+              {% if row.fundamental_card and row.fundamental_card.risks %}
+                <div class="muted">风险：{{ row.fundamental_card.risks | join("; ") }}</div>
+              {% endif %}
+            </td>
+            <td data-label="轨迹">
+              {% if row.spark_points %}
+                <svg class="holding-sparkline" viewBox="0 0 132 42" aria-label="{{ row.ticker }} price trend">
+                  <polyline fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" points="{{ row.spark_points }}"></polyline>
+                </svg>
+                {% if row.spark_source == "eastmoney_kline" %}
+                  <div class="muted">轨迹补全：东财K线</div>
+                {% endif %}
+              {% else %}
+                <span class="muted">快照不足</span>
+              {% endif %}
+            </td>
+            <td class="js-entry" data-label="买入价">{{ row.entry }}</td>
+            <td class="js-last" data-label="当前价">{{ row.last }}</td>
+            <td class="js-pnl" data-label="盈亏">{{ row.pnl }}</td>
+            <td data-label="价格来源">
+              <span class="price-badge js-price-badge {{ 'is-real' if row.price_badge == '真实快照' else 'is-estimated' }}">
+                {{ row.price_badge or "估算价格" }}
+              </span>
+              <div class="muted js-price-updated">{% if row.price_updated_at %}{{ row.price_updated_at }}{% endif %}</div>
+              {% if row.entry_note %}
+                <div class="muted">{{ row.entry_note }}</div>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="hero-card glass">
+    <div class="section-title">策略链路</div>
+    <div class="sandbox-grid">
+      {% if sandbox_rows %}
+        {% for row in sandbox_rows %}
+          <div class="sandbox-card">
+            <div class="sandbox-head">
+              <span class="badge accent">{{ row.theme }}</span>
+              <span class="badge">{{ row.impact }}</span>
+              <span class="badge sector">{{ row.horizon }}</span>
+            </div>
+            <div class="sandbox-body">
+              <div><strong>板块：</strong>{{ row.sectors }}</div>
+              <div><strong>标的：</strong>{{ row.tickers }}</div>
+              <div class="muted">{{ row.rationale }}</div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">暂无策略链路数据。</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="hero-card glass">
+    <div class="section-title">成绩快照</div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>累计收益</th>
+          <th>最大回撤</th>
+          <th>胜率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in snapshots %}
+          <tr>
+            <td>{{ row.snapshot_date }}</td>
+            <td>{{ "%.2f"|format(row.return_pct) }}%</td>
+            <td>{{ "%.2f"|format(row.max_drawdown * 100) }}%</td>
+            <td>{{ "%.1f"|format(row.win_rate) }}%</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">暂无成绩快照记录。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <script>
+    (function settleSkeleton() {
+      const skeleton = document.getElementById("page-skeleton");
+      if (!skeleton || skeleton.classList.contains("hidden")) return;
+      const finish = () => {
+        skeleton.classList.add("page-skeleton-exit");
+        setTimeout(() => skeleton.classList.add("hidden"), 260);
+        try {
+          sessionStorage.removeItem("next_page_skeleton");
+        } catch (err) {
+          // ignore
+        }
+        document.body.classList.remove("page-enter");
+      };
+      if (document.readyState === "complete") {
+        setTimeout(finish, 220);
+      } else {
+        window.addEventListener("load", () => setTimeout(finish, 220), { once: true });
+      }
+    })();
+
+    const perfHoldingsTable = document.getElementById("performance-holdings-table");
+    async function refreshHoldingPrices(tableEl) {
+      if (!tableEl || document.hidden) return;
+      const rows = Array.from(tableEl.querySelectorAll("tbody tr[data-ticker]"));
+      const tickers = rows.map((row) => row.dataset.ticker).filter(Boolean);
+      if (!tickers.length) return;
+      try {
+        const query = new URLSearchParams({
+          symbols: tickers.join(","),
+          pick_date: tableEl.dataset.pickDate || "",
+        });
+        const res = await fetch(`/api/holding_prices?${query.toString()}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const payload = await res.json();
+        const items = payload.items || {};
+        const capturedAt = payload.captured_at || "";
+        rows.forEach((row) => {
+          const ticker = row.dataset.ticker;
+          const price = Number(items[ticker]);
+          if (!Number.isFinite(price) || price <= 0) return;
+          const entryEl = row.querySelector(".js-entry");
+          const lastEl = row.querySelector(".js-last");
+          const pnlEl = row.querySelector(".js-pnl");
+          const badgeEl = row.querySelector(".js-price-badge");
+          const updatedEl = row.querySelector(".js-price-updated");
+          const entry = Number(entryEl?.textContent || 0);
+          if (lastEl) lastEl.textContent = price.toFixed(2);
+          if (pnlEl && Number.isFinite(entry) && entry > 0) {
+            const pnl = ((price / entry) - 1) * 100;
+            pnlEl.textContent = `${pnl.toFixed(2)}%`;
+          }
+          if (badgeEl) {
+            badgeEl.textContent = "实时快照";
+            badgeEl.classList.remove("is-estimated");
+            badgeEl.classList.add("is-real");
+          }
+          if (updatedEl && capturedAt) {
+            updatedEl.textContent = capturedAt;
+          }
+        });
+      } catch (err) {
+        // ignore
+      }
+    }
+    if (perfHoldingsTable) {
+      setTimeout(() => refreshHoldingPrices(perfHoldingsTable), 900);
+      setInterval(() => {
+        refreshHoldingPrices(perfHoldingsTable);
+      }, 25000);
+    }
+  </script>
+{% endblock %}

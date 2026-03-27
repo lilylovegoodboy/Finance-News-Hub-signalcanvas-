@@ -1,0 +1,74 @@
+﻿{% extends "base.html" %}
+{% block content %}
+  <article class="card">
+    <div class="meta">
+      <span class="badge accent">{{ item.source_id }}</span>
+      <span class="badge">{{ item.display_time or (item.published_at or item.fetched_at) }}</span>
+      <span class="badge sector">{{ item.sector }}</span>
+    </div>
+    <p class="single-text">{{ item.display_title or item.title_zh or item.title }}</p>
+    {% if item.display_summary %}
+      <p class="news-summary">{{ item.display_summary }}</p>
+    {% endif %}
+    {% if item.trade_card %}
+      <section class="thesis-card">
+        <div class="thesis-strip">
+          {% if item.trade_card.event_type %}<span class="tag">{{ item.trade_card.event_type }}</span>{% endif %}
+          {% if item.trade_card.trade_action %}<span class="tag">{{ item.trade_card.trade_action }}</span>{% endif %}
+          {% if item.trade_card.signal_score %}<span class="tag">信号 {{ item.trade_card.signal_score }}</span>{% endif %}
+          {% if item.trade_card.source_grade %}<span class="tag">信源 {{ item.trade_card.source_grade }}</span>{% endif %}
+        </div>
+        <div class="thesis-grid">
+          {% if item.trade_card.impact_path %}
+            <div>
+              <strong>推演路径</strong>
+              <p>{{ item.trade_card.impact_path }}</p>
+            </div>
+          {% endif %}
+          {% if item.trade_card.primary_assets %}
+            <div>
+              <strong>直连资产</strong>
+              <p>{{ item.trade_card.primary_assets|join(' / ') }}</p>
+            </div>
+          {% endif %}
+          {% if item.trade_card.invalidation %}
+            <div>
+              <strong>失效条件</strong>
+              <p>{{ item.trade_card.invalidation }}</p>
+            </div>
+          {% endif %}
+          {% if item.trade_card.risk_hint %}
+            <div>
+              <strong>误判风险</strong>
+              <p>{{ item.trade_card.risk_hint }}</p>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+    {% endif %}
+    {% if item.display_tags %}
+      <div class="display-tags">
+        {% for tag in item.display_tags %}
+          <span class="tag">{{ tag }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% if item.metric_line %}
+      <p class="muted">{{ item.metric_line }}</p>
+    {% endif %}
+    {% if item.content_zh or item.content %}
+      <div class="content">{{ item.content_zh or item.content }}</div>
+    {% endif %}
+    <p class="hint"><a class="link" href="{{ item.url }}" target="_blank" rel="noreferrer">打开原文链接</a></p>
+    <details class="original">
+      <summary>查看原文</summary>
+      <h2 class="title">{{ item.title }}</h2>
+      {% if item.summary %}
+        <p class="summary">{{ item.summary }}</p>
+      {% endif %}
+      {% if item.content %}
+        <div class="content">{{ item.content }}</div>
+      {% endif %}
+    </details>
+  </article>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="manual-shell glass">
+    <div class="manual-header">
+      <div>
+        <div class="section-title">用户使用手册</div>
+        <h1 class="manual-title">{{ manual.title }}</h1>
+        <p class="manual-subtitle">{{ manual.subtitle }}</p>
+        <p class="manual-updated">更新日期 {{ manual.updated_at }}</p>
+      </div>
+      <div class="manual-actions">
+        <a class="manual-action-link" href="/">返回首页</a>
+        <a class="manual-action-link" href="/manual/download.md">下载 Markdown</a>
+        {% if print_mode %}
+          <a class="manual-action-link" href="/manual/download.pdf">下载 PDF</a>
+          <button class="manual-action-link manual-action-button" type="button" onclick="window.print()">打印 / 保存 PDF</button>
+        {% else %}
+          <a class="manual-action-link" href="/manual/print" target="_blank" rel="noreferrer">PDF打印版</a>
+          <a class="manual-action-link" href="/manual/download.pdf">下载 PDF</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <section class="manual-quickstart">
+      <div class="manual-section-head">
+        <h2>快速开始</h2>
+        <span>先看主线，再看执行</span>
+      </div>
+      <div class="manual-quickstart-grid">
+        {% for item in manual.quick_start %}
+          <article class="manual-mini-card">
+            <span class="manual-mini-index">0{{ loop.index }}</span>
+            <p>{{ item }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% for section in manual.sections %}
+      <section class="manual-section-card">
+        <div class="manual-section-head">
+          <h2>{{ section.title }}</h2>
+          <span>系统说明</span>
+        </div>
+        <p class="manual-section-intro">{{ section.intro }}</p>
+        <ul class="manual-list">
+          {% for item in section["items"] %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+
+    <section class="manual-section-card">
+      <div class="manual-section-head">
+        <h2>常见问题</h2>
+        <span>FAQ</span>
+      </div>
+      <div class="manual-faq-list">
+        {% for item in manual.faq %}
+          <article class="manual-faq-item">
+            <h3>{{ item.q }}</h3>
+            <p>{{ item.a }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  </section>
+{% endblock %}

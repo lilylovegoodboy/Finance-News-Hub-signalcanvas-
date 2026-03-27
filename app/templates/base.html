@@ -1,0 +1,367 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title or "SignalCanvas" }}</title>
+  <link rel="icon" href="/static/favicon.ico" sizes="any" />
+  <link rel="shortcut icon" href="/static/favicon.ico" />
+  <link rel="icon" href="/static/favicon.svg?v=1" type="image/svg+xml" sizes="any" />
+  <link rel="shortcut icon" href="/static/favicon.svg?v=1" type="image/svg+xml" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="prefetch" href="/simulator" />
+  <link rel="prefetch" href="/performance" />
+  <link rel="prefetch" href="/thesis-engine" />
+  <link rel="prefetch" href="/retail-heat" />
+</head>
+<body class="{{ body_class or '' }}">
+  <div class="page-transition" id="page-transition" aria-hidden="true">
+    <div class="page-transition-glow"></div>
+    <div class="page-transition-icon-wrap">
+      <svg class="page-transition-icon" viewBox="0 0 64 64" aria-hidden="true">
+        <rect class="page-transition-icon-bg" width="64" height="64" rx="14"></rect>
+        <path class="page-transition-icon-line" d="M14 42L24 32L32 38L42 24L50 30" pathLength="100"></path>
+        <circle class="page-transition-icon-dot page-transition-icon-dot-1" cx="24" cy="32" r="2"></circle>
+        <circle class="page-transition-icon-dot page-transition-icon-dot-2" cx="32" cy="38" r="2"></circle>
+        <circle class="page-transition-icon-dot page-transition-icon-dot-3" cx="42" cy="24" r="2"></circle>
+      </svg>
+    </div>
+  </div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="SignalCanvas">
+      <img src="/static/favicon.svg" alt="" class="brand-icon" />
+      <span>SignalCanvas</span>
+    </a>
+    <nav>
+      <a class="nav-pill nav-pill-tech nav-pill-mobile-core" href="/">快讯 📰</a>
+      <a class="nav-pill nav-pill-tech nav-pill-mobile-hidden" href="/simulator">模拟人类投资 🤖</a>
+      <a class="nav-pill nav-pill-tech nav-pill-performance-mobile" href="/performance">成绩细节 📊</a>
+      <a class="nav-pill nav-pill-tech nav-pill-mobile-hidden" href="/retail-heat">散户热度 🔥</a>
+      <a class="nav-pill nav-pill-mobile-core" href="/thesis-engine">推演引擎 ✨</a>
+      <a class="nav-pill nav-pill-mobile-hidden" href="/sandbox">沙盘模拟 🧪</a>
+      <a class="nav-pill nav-pill-optional nav-pill-mobile-hidden" href="/calendar">事件日历 📅</a>
+      <a class="nav-pill nav-pill-optional nav-pill-mobile-hidden" href="/big">大事件 🌐</a>
+      <div class="nav-dropdown">
+        <button class="nav-pill nav-pill-button nav-dropdown-toggle" type="button" aria-expanded="false">详情 ▾</button>
+        <div class="nav-menu">
+          <a class="nav-menu-mobile-only" href="/simulator">模拟人类投资 🤖</a>
+          <a href="/performance">成绩细节 📊</a>
+          <a class="nav-menu-mobile-only" href="/retail-heat">散户热度 🔥</a>
+          <a class="nav-menu-mobile-only" href="/sandbox">沙盘模拟 🧪</a>
+          <a class="nav-menu-mobile-only" href="/calendar">事件日历 📅</a>
+          <a class="nav-menu-mobile-only" href="/big">大事件 🌐</a>
+          <a href="/ops">运营面板 📈</a>
+          <a href="/about">制作初衷 ✨</a>
+          <a href="/settings">来源 🧭</a>
+          <a href="/admin/login">管理登录 🔐</a>
+        </div>
+      </div>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button" title="主题模式：跟随系统 / 浅色 / 深色">跟随系统</button>
+  </header>
+  <div class="nav-menu-overlay" id="nav-menu-overlay" aria-hidden="true"></div>
+  <div class="scroll-progress" id="scroll-progress"></div>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  {% if request.url.path == "/simulator" %}
+  <div class="llm-status" id="llm-status">
+    <span class="llm-dot"></span>
+    <span class="llm-text">AGI 连接中…</span>
+  </div>
+  {% endif %}
+  {% if request.url.path in ["/simulator", "/performance"] %}
+  <div class="brand-scroll-progress" id="brand-scroll-progress" aria-hidden="true">
+    <svg class="brand-scroll-icon" viewBox="0 0 64 64">
+      <rect class="brand-scroll-bg" width="64" height="64" rx="14"></rect>
+      <path class="brand-scroll-track" d="M14 42L24 32L32 38L42 24L50 30" pathLength="100"></path>
+      <path class="brand-scroll-line" id="brand-scroll-line" d="M14 42L24 32L32 38L42 24L50 30" pathLength="100"></path>
+      <circle class="brand-scroll-dot brand-scroll-dot-1" id="brand-scroll-dot-1" cx="24" cy="32" r="2"></circle>
+      <circle class="brand-scroll-dot brand-scroll-dot-2" id="brand-scroll-dot-2" cx="32" cy="38" r="2"></circle>
+      <circle class="brand-scroll-dot brand-scroll-dot-3" id="brand-scroll-dot-3" cx="42" cy="24" r="2"></circle>
+    </svg>
+  </div>
+  {% endif %}
+  <script>
+    const toggle = document.getElementById("theme-toggle");
+    const systemTheme = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    const THEME_KEY = "theme_mode";
+    const getThemeMode = () => localStorage.getItem(THEME_KEY) || "light";
+    function applyTheme(mode) {
+      const isDark = mode === "dark" || (mode === "auto" && systemTheme && systemTheme.matches);
+      document.body.classList.toggle("theme-dark", !!isDark);
+      if (!toggle) return;
+      if (mode === "auto") {
+        toggle.textContent = "跟随系统";
+      } else if (mode === "light") {
+        toggle.textContent = "浅色";
+      } else {
+        toggle.textContent = "深色";
+      }
+    }
+    function cycleThemeMode() {
+      const current = getThemeMode();
+      const next = current === "light" ? "dark" : current === "dark" ? "auto" : "light";
+      localStorage.setItem(THEME_KEY, next);
+      applyTheme(next);
+    }
+    applyTheme(getThemeMode());
+    if (toggle) {
+      toggle.addEventListener("click", cycleThemeMode);
+    }
+    if (systemTheme && typeof systemTheme.addEventListener === "function") {
+      systemTheme.addEventListener("change", () => {
+        if (getThemeMode() === "auto") applyTheme("auto");
+      });
+    } else if (systemTheme && typeof systemTheme.addListener === "function") {
+      systemTheme.addListener(() => {
+        if (getThemeMode() === "auto") applyTheme("auto");
+      });
+    }
+
+    const navLinks = document.querySelectorAll(".nav-pill");
+    const navDropdown = document.querySelector(".nav-dropdown");
+    const navDropdownToggle = document.querySelector(".nav-dropdown-toggle");
+    const navMenuOverlay = document.getElementById("nav-menu-overlay");
+    navLinks.forEach((link) => {
+      const href = link.getAttribute("href");
+      if (href && window.location.pathname === href) {
+        link.classList.add("active");
+      }
+    });
+
+    const warmRoutes = new Set(["/simulator", "/performance", "/thesis-engine", "/retail-heat"]);
+    const warmed = new Set();
+    function warmRoute(path) {
+      if (!path || warmed.has(path) || !warmRoutes.has(path) || window.location.pathname === path) return;
+      warmed.add(path);
+      fetch(path, {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "force-cache",
+      }).catch(() => {
+        warmed.delete(path);
+      });
+    }
+    navLinks.forEach((link) => {
+      const href = link.getAttribute("href");
+      if (!href || !warmRoutes.has(href)) return;
+      link.addEventListener("mouseenter", () => warmRoute(href), { passive: true });
+      link.addEventListener("focus", () => warmRoute(href), { passive: true });
+      link.addEventListener("touchstart", () => warmRoute(href), { passive: true, once: true });
+    });
+    const idleWarm = window.requestIdleCallback
+      ? (cb) => window.requestIdleCallback(cb, { timeout: 1800 })
+      : (cb) => setTimeout(cb, 1200);
+    idleWarm(() => {
+      warmRoute("/simulator");
+      warmRoute("/performance");
+      warmRoute("/retail-heat");
+    });
+
+    const pageTransition = document.getElementById("page-transition");
+    function showPageTransition(path) {
+      if (!pageTransition) return;
+      pageTransition.dataset.mode = path || "";
+      pageTransition.classList.add("is-active");
+    }
+    navLinks.forEach((link) => {
+      const href = link.getAttribute("href");
+      if (!href || href.startsWith("#")) return;
+      link.addEventListener("click", (event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        if (link.target && link.target !== "_self") return;
+        if (window.location.pathname === href) return;
+        try {
+          sessionStorage.setItem("next_page_skeleton", href);
+        } catch (err) {
+          // ignore
+        }
+        showPageTransition(href);
+      });
+    });
+    function closeNavDropdown() {
+      if (!navDropdown || !navDropdownToggle) return;
+      navDropdown.classList.remove("is-open");
+      navDropdownToggle.setAttribute("aria-expanded", "false");
+      if (navMenuOverlay) navMenuOverlay.classList.remove("is-active");
+      if (document.activeElement && navDropdown.contains(document.activeElement) && typeof document.activeElement.blur === "function") {
+        document.activeElement.blur();
+      }
+    }
+    function toggleNavDropdown() {
+      if (!navDropdown || !navDropdownToggle) return;
+      const willOpen = !navDropdown.classList.contains("is-open");
+      navDropdown.classList.toggle("is-open", willOpen);
+      navDropdownToggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      if (navMenuOverlay) navMenuOverlay.classList.toggle("is-active", willOpen);
+    }
+    if (navDropdownToggle) {
+      navDropdownToggle.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleNavDropdown();
+      });
+    }
+    document.addEventListener("click", (event) => {
+      if (!navDropdown) return;
+      if (!navDropdown.contains(event.target)) {
+        closeNavDropdown();
+      }
+    });
+    if (navMenuOverlay) {
+      navMenuOverlay.addEventListener("click", () => closeNavDropdown());
+    }
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeNavDropdown();
+    });
+    document.querySelectorAll(".nav-menu a").forEach((link) => {
+      link.addEventListener("click", () => closeNavDropdown());
+    });
+    window.addEventListener("pageshow", () => {
+      closeNavDropdown();
+      if (pageTransition) {
+        pageTransition.classList.remove("is-active");
+        pageTransition.dataset.mode = "";
+      }
+    });
+
+    const llmEl = document.getElementById("llm-status");
+    const llmText = llmEl ? llmEl.querySelector(".llm-text") : null;
+    const llmDot = llmEl ? llmEl.querySelector(".llm-dot") : null;
+    let llmTimer = null;
+    let llmFadeTimer = null;
+
+    function updateLlmStatus(data) {
+      if (!llmEl || !llmText || !llmDot) return;
+      llmEl.classList.remove("llm-faded");
+      if (llmFadeTimer) {
+        clearTimeout(llmFadeTimer);
+        llmFadeTimer = null;
+      }
+      if (!data || !data.enabled) {
+        llmEl.dataset.state = "disabled";
+        llmText.textContent = "AGI 同步中";
+        return;
+      }
+      if (!data.last_attempt_at) {
+        llmEl.dataset.state = "ok";
+        llmText.textContent = "AGI 已就绪";
+        llmFadeTimer = setTimeout(() => {
+          llmEl.classList.add("llm-faded");
+        }, 10000);
+        return;
+      }
+      if (data.running) {
+        llmEl.dataset.state = "connecting";
+        llmText.textContent = "AGI 同步中";
+        return;
+      }
+      if (data.connected) {
+        llmEl.dataset.state = "ok";
+        llmText.textContent = "AGI 已同步";
+        llmFadeTimer = setTimeout(() => {
+          llmEl.classList.add("llm-faded");
+        }, 10000);
+        return;
+      }
+      llmEl.dataset.state = "connecting";
+      llmText.textContent = "AGI 同步中";
+    }
+
+    async function fetchLlmStatus() {
+      try {
+        const res = await fetch("/api/llm_status");
+        if (!res.ok) throw new Error("bad status");
+        const data = await res.json();
+        updateLlmStatus(data);
+      } catch (err) {
+        updateLlmStatus({ enabled: true, connected: false, running: false });
+      }
+    }
+
+    if (llmEl) {
+      fetchLlmStatus();
+      llmTimer = setInterval(fetchLlmStatus, 8000);
+    }
+
+    const progressBar = document.getElementById("scroll-progress");
+    const mainContainer = document.querySelector("main.container");
+    function getPageScrollRatio() {
+      const topbarEl = document.querySelector(".topbar");
+      const topbarHeight = topbarEl ? topbarEl.offsetHeight : 0;
+      const contentTop = mainContainer ? Math.max(mainContainer.offsetTop - topbarHeight, 0) : 0;
+      const contentHeight = mainContainer
+        ? Math.max(mainContainer.scrollHeight, mainContainer.offsetHeight)
+        : Math.max(document.documentElement.scrollHeight, window.innerHeight);
+      const viewportHeight = Math.max(window.innerHeight - topbarHeight, 1);
+      const total = Math.max(contentHeight - viewportHeight, 1);
+      const scrollTop = Math.max((window.scrollY || window.pageYOffset || 0) - contentTop, 0);
+      return Math.min(Math.max(scrollTop / total, 0), 1);
+    }
+    function updateScrollProgress() {
+      if (!progressBar) return;
+      progressBar.style.transform = `scaleX(${getPageScrollRatio()})`;
+    }
+    function refreshPageProgress() {
+      updateScrollProgress();
+      updateBrandScrollProgress();
+    }
+    updateScrollProgress();
+    window.addEventListener("scroll", updateScrollProgress, { passive: true });
+
+    const brandScrollWidget = document.getElementById("brand-scroll-progress");
+    const brandScrollLine = document.getElementById("brand-scroll-line");
+    function updateBrandScrollProgress() {
+      if (!brandScrollWidget || !brandScrollLine) return;
+      const ratio = getPageScrollRatio();
+      brandScrollLine.style.strokeDashoffset = String(100 - ratio * 100);
+      brandScrollWidget.classList.toggle("is-complete", ratio > 0.98);
+    }
+    updateBrandScrollProgress();
+    window.addEventListener("scroll", updateBrandScrollProgress, { passive: true });
+    window.addEventListener("resize", refreshPageProgress, { passive: true });
+    window.addEventListener("load", refreshPageProgress, { once: true });
+    window.addEventListener("pageshow", refreshPageProgress);
+    requestAnimationFrame(refreshPageProgress);
+    setTimeout(refreshPageProgress, 120);
+    setTimeout(refreshPageProgress, 420);
+
+    const topbar = document.querySelector(".topbar");
+    function syncTopbarHeight() {
+      if (!topbar) return;
+      document.documentElement.style.setProperty("--topbar-height", `${topbar.offsetHeight}px`);
+    }
+    function updateTopbarState() {
+      if (!topbar) return;
+      if (window.scrollY > 10) topbar.classList.add("is-scrolled");
+      else topbar.classList.remove("is-scrolled");
+    }
+    syncTopbarHeight();
+    updateTopbarState();
+    window.addEventListener("resize", syncTopbarHeight);
+    window.addEventListener("scroll", updateTopbarState, { passive: true });
+
+    try {
+      const navEntries = performance.getEntriesByType ? performance.getEntriesByType("navigation") : [];
+      const navType = navEntries && navEntries.length ? navEntries[0].type : "";
+      if (navType !== "back_forward") {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    const revealNodes = document.querySelectorAll(".reveal, .title-anim");
+    if (revealNodes.length) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) entry.target.classList.add("in-view");
+        });
+      }, { threshold: 0.12 });
+      revealNodes.forEach((node) => observer.observe(node));
+    }
+
+  </script>
+</body>
+</html>

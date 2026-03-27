@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-card glass">
+      <h1>事件日历</h1>
+      <p>聚合宏观、政策与市场节点，并让 AI 给出这项数据为什么重要、市场预期与超预期/低预期的可能影响。</p>
+      <div class="hero-actions">
+        <span class="pill">北京时间</span>
+        <span class="pill">{{ "已接入实时日历" if live else "示例数据" }}</span>
+      </div>
+    </div>
+    <div class="hero-card glass">
+      <div class="section-title">说明</div>
+      <p class="muted">{{ "已接入实时日历数据，并为前排事件补充 AI 解读。" if live else "当前为示例数据，后续将继续接入实时日历并补充 AI 解读。" }}</p>
+      <p class="muted">仅供娱乐与策略研究参考，不构成任何投资建议。</p>
+      <div class="section-title">状态</div>
+      <p>已展示未来 {{ initial_days }} 天重点事件。</p>
+    </div>
+  </section>
+
+  <section class="hero-card glass">
+    <div class="section-title">日历</div>
+    <div class="calendar-grid" id="calendar-grid">
+      <div class="skeleton-list">
+        <div class="skeleton-card">
+          <div class="skeleton skeleton-line" style="width: 120px;"></div>
+          <div class="skeleton skeleton-line" style="width: 90%;"></div>
+          <div class="skeleton skeleton-line" style="width: 75%;"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton skeleton-line" style="width: 130px;"></div>
+          <div class="skeleton skeleton-line" style="width: 88%;"></div>
+          <div class="skeleton skeleton-line" style="width: 65%;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="calendar-load">
+      <button class="ghost" type="button" id="load-more">加载更多</button>
+      <span class="muted" id="load-note">已加载 {{ initial_days }} 天</span>
+    </div>
+  </section>
+
+  <script>
+    const initialCalendarItems = {{ items|tojson }};
+    const preloadDays = {{ preload_days|tojson }};
+    const grid = document.getElementById("calendar-grid");
+    const loadBtn = document.getElementById("load-more");
+    const loadNote = document.getElementById("load-note");
+    let loadedDays = {{ initial_days }};
+    const targetDays = 10;
+
+    function groupItems(items) {
+      const grouped = {};
+      items.forEach((ev) => {
+        const key = ev.date || "今日";
+        grouped[key] = grouped[key] || [];
+        grouped[key].push(ev);
+      });
+      return grouped;
+    }
+
+    function renderDay(dateKey, items) {
+      const day = document.createElement("div");
+      day.className = "calendar-day";
+      const date = document.createElement("div");
+      date.className = "calendar-date";
+      date.textContent = dateKey;
+      day.appendChild(date);
+      items.forEach((ev) => {
+        const statsHtml = (Array.isArray(ev.stats) ? ev.stats : [])
+          .map((s) => `<div class="event-stat"><span>${s.label}</span><strong>${s.value}</strong></div>`)
+          .join("");
+        const card = document.createElement("div");
+        card.className = "event-card";
+        card.innerHTML = `
+          <div class="event-time">${ev.time || ""}</div>
+          <div class="event-main">
+            <div class="event-title">${ev.title || ""}</div>
+            <div class="event-meta">
+              <span class="badge">${ev.country || ""}</span>
+              <span class="badge ${ev.impact === "high" ? "accent" : ""}">${ev.impact || ""}</span>
+              <span class="badge sector">${ev.category || ""}</span>
+            </div>
+            ${statsHtml ? `<div class="event-stats">${statsHtml}</div>` : ""}
+            ${ev.ai_view ? `<p class="news-summary"><strong>AI解读：</strong>${ev.ai_view}</p>` : ""}
+            ${ev.ai_expectation ? `<p class="news-summary"><strong>市场预估：</strong>${ev.ai_expectation}</p>` : ""}
+            ${(ev.ai_bull_case || ev.ai_bear_case) ? `
+              <div class="calendar-scenarios">
+                ${ev.ai_bull_case ? `<p class="news-summary"><strong>高于预期：</strong>${ev.ai_bull_case}</p>` : ""}
+                ${ev.ai_bear_case ? `<p class="news-summary"><strong>低于预期：</strong>${ev.ai_bear_case}</p>` : ""}
+              </div>
+            ` : ""}
+          </div>
+        `;
+        day.appendChild(card);
+      });
+      return day;
+    }
+
+    function applyItems(items, days, fromCache = false) {
+      grid.innerHTML = "";
+      if (!items.length) {
+        grid.innerHTML = '<div class="empty">暂无日历数据。</div>';
+        return;
+      }
+      const grouped = groupItems(items);
+      Object.keys(grouped).forEach((key) => {
+        grid.appendChild(renderDay(key, grouped[key]));
+      });
+      loadedDays = days;
+      if (loadNote) {
+        loadNote.textContent = fromCache ? `已加载 ${loadedDays} 天（缓存）` : `已加载 ${loadedDays} 天`;
+      }
+    }
+
+    async function loadDays(days) {
+      if (!loadBtn) return;
+      const cacheKey = `calendar_cache_${days}_v2`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed.items)) {
+            applyItems(parsed.items, days, true);
+          }
+        } catch (err) {
+          // ignore cache parse error
+        }
+      }
+      try {
+        const resp = await fetch(`/api/calendar?days=${days}`);
+        const data = await resp.json();
+        const items = data.items || [];
+        applyItems(items, days, false);
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({ items, ts: Date.now() }));
+        } catch (err) {
+          // ignore storage error
+        }
+      } catch (err) {
+        if (!grid.children.length) {
+          grid.innerHTML = '<div class="empty">获取失败，请稍后再试。</div>';
+        }
+      }
+    }
+
+    if (loadBtn) {
+      loadBtn.addEventListener("click", async () => {
+        loadBtn.disabled = true;
+        loadBtn.textContent = "加载中...";
+        await loadDays(targetDays);
+        loadBtn.textContent = "加载更多";
+        loadBtn.disabled = false;
+      });
+    }
+
+    if (Array.isArray(initialCalendarItems) && initialCalendarItems.length) {
+      applyItems(initialCalendarItems, preloadDays, true);
+    }
+    loadDays(loadedDays);
+  </script>
+{% endblock %}

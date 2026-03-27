@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-card glass">
+      <h1>大事件</h1>
+      <p>聚合全球重要新闻与突发要闻，并补充 AI 看法，帮助我们更快判断事件可能影响的方向。</p>
+      <div class="hero-actions">
+        <span class="pill">自动刷新</span>
+        <span class="pill">AI 事件解读</span>
+      </div>
+    </div>
+    <div class="hero-card glass">
+      <div class="section-title">说明</div>
+      <p class="muted">展示大事件流的最新条目，并尝试给出一段简短的市场看法、影响方向与风险提示。</p>
+      <p class="muted">仅供娱乐与策略研究参考，不构成任何投资建议。</p>
+      <div class="section-title">状态</div>
+      <p id="big-status">加载中...</p>
+    </div>
+  </section>
+
+  <section class="timeline" id="big-list">
+    <div class="skeleton-list">
+      <div class="skeleton-card">
+        <div class="skeleton skeleton-line" style="width: 140px;"></div>
+        <div class="skeleton skeleton-line" style="width: 90%;"></div>
+        <div class="skeleton skeleton-line" style="width: 70%;"></div>
+      </div>
+      <div class="skeleton-card">
+        <div class="skeleton skeleton-line" style="width: 120px;"></div>
+        <div class="skeleton skeleton-line" style="width: 85%;"></div>
+        <div class="skeleton skeleton-line" style="width: 60%;"></div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const initialBigItems = {{ items|tojson }};
+    const initialBigFallback = {{ fallback_used|tojson }};
+    const list = document.getElementById("big-list");
+    const status = document.getElementById("big-status");
+
+    function renderItem(item) {
+      const card = document.createElement("article");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="meta">
+          <span class="badge accent">BIG</span>
+          <span class="badge">${item.time || "-"}</span>
+        </div>
+        <p class="single-text">${item.title || ""}</p>
+        ${item.content ? `<p class="body-text">${item.content}</p>` : ""}
+        ${item.ai_view ? `<p class="news-summary"><strong>AI看法：</strong>${item.ai_view}</p>` : ""}
+        ${item.ai_impact ? `<p class="news-summary"><strong>影响方向：</strong>${item.ai_impact}</p>` : ""}
+        ${item.ai_risk ? `<p class="news-summary"><strong>风险提示：</strong>${item.ai_risk}</p>` : ""}
+        ${item.url ? `<div class="actions"><a class="link" href="${item.url}" target="_blank" rel="noreferrer">原文链接</a></div>` : ""}
+      `;
+      return card;
+    }
+
+    function applyItems(items, fromCache = false) {
+      list.innerHTML = "";
+      if (!items.length) {
+        list.innerHTML = '<div class="empty">暂无大事件数据。</div>';
+        if (status) status.textContent = "暂无数据";
+        return;
+      }
+      items.forEach((item) => list.appendChild(renderItem(item)));
+      if (status) {
+        status.textContent = fromCache ? `已加载 ${items.length} 条（缓存）` : `已加载 ${items.length} 条`;
+      }
+    }
+
+    async function loadBig() {
+      const cacheKey = "big_cache_v2";
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed.items)) {
+            applyItems(parsed.items, true);
+          }
+        } catch (err) {
+          // ignore cache parse error
+        }
+      }
+      try {
+        const resp = await fetch("/api/big?limit=50");
+        const data = await resp.json();
+        const items = data.items || [];
+        applyItems(items, false);
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({ items, ts: Date.now() }));
+        } catch (err) {
+          // ignore storage error
+        }
+      } catch (err) {
+        if (!list.children.length) {
+          list.innerHTML = '<div class="empty">获取失败，请稍后再试。</div>';
+          if (status) status.textContent = "获取失败";
+        }
+      }
+    }
+
+    if (Array.isArray(initialBigItems) && initialBigItems.length) {
+      applyItems(initialBigItems, true);
+      if (status) {
+        status.textContent = initialBigFallback
+          ? `已预载 ${initialBigItems.length} 条（回退）`
+          : `已预载 ${initialBigItems.length} 条`;
+      }
+    }
+    loadBig();
+  </script>
+{% endblock %}

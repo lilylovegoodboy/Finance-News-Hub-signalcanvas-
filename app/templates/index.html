@@ -1,0 +1,446 @@
+﻿{% extends "base.html" %}
+{% block content %}
+  <div class="news-disclaimer">仅供娱乐与策略研究参考，不构成任何投资建议。</div>
+  <section class="hero home-hero">
+    <div class="hero-card glass">
+      <div class="section-title">首页定位</div>
+      <h1 class="hero-tech-title">{{ home_focus.positioning_title }}</h1>
+      <p>{{ home_focus.positioning_desc }}</p>
+      <div class="hero-actions">
+        <a class="pill" href="/simulator">查看模拟投资</a>
+        <a class="pill" href="/performance">查看成绩细节</a>
+        <span class="pill">自动刷新 30s</span>
+        <span class="pill">今日访客 {{ daily_count }}</span>
+      </div>
+      <div class="hero-help-links" aria-label="使用手册入口">
+        <a class="hero-help-link" href="/manual">使用手册</a>
+        <a class="hero-help-link" href="/manual/download.pdf">PDF下载</a>
+        <a class="hero-help-link" href="/manual/download.md">Markdown下载</a>
+      </div>
+    </div>
+    <div class="hero-card glass home-hero-secondary">
+      <div class="section-title">模拟投资入口</div>
+      <p class="title-large">{{ home_focus.sim_entry.title }}</p>
+      <p class="muted">{{ home_focus.sim_entry.desc }}</p>
+      <div class="hero-actions hero-actions-focus">
+        <a class="pill" href="/simulator">进入模拟人类投资</a>
+        <a class="pill" href="/sandbox">查看沙盘推演</a>
+      </div>
+      {% if home_focus.sim_entry.return_pct is not none %}
+        <p class="muted">累计收益 {{ "%.2f"|format(home_focus.sim_entry.return_pct) }}%</p>
+      {% endif %}
+      {% if home_focus.sim_entry.snapshot_date %}
+        <p class="muted">最近成绩快照 {{ home_focus.sim_entry.snapshot_date }}</p>
+      {% endif %}
+      {% if home_focus.sim_entry.tags %}
+        <div class="basis">
+          <span class="muted">核心标签</span>
+          <div class="chip-list">
+            {% for item in home_focus.sim_entry.tags %}
+              <span class="chip">{{ item }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="home-focus-strip home-focus-mobile-extra">
+    {% for card in home_focus.focus_cards %}
+      <article class="home-focus-card">
+        <span class="home-focus-eyebrow">{{ card.eyebrow }}</span>
+        <h3>{{ card.title }}</h3>
+        <p>{{ card.desc }}</p>
+        <div class="home-focus-meta">{{ card.meta }}</div>
+      </article>
+    {% endfor %}
+  </section>
+
+  <section class="filters">
+    <form method="get">
+      <input type="text" name="q" placeholder="关键词 / 主题" value="{{ filters.q or '' }}" />
+      <select name="source">
+        <option value="">全部来源</option>
+        {% for s in sources %}
+          <option value="{{ s.id }}" {% if filters.source == s.id %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="sector">
+        <option value="">全部板块</option>
+        {% for sec in sectors %}
+          <option value="{{ sec }}" {% if filters.sector == sec %}selected{% endif %}>{{ sec }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">筛选</button>
+    </form>
+  </section>
+
+  <div class="section-title section-title-live">
+    最新快讯
+    <span class="live-status">
+      <span class="live-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="14" height="14" role="img" aria-label="telegraph">
+          <path d="M21.5 3.5L3.8 10.7c-.9.4-.8 1.7.2 2l4.4 1.4 1.7 4.3c.4.9 1.7 1 2.2.1l2.4-2.8 4.2 3c.8.6 2 .1 2.2-.9l2.8-13.2c.2-1-.8-1.8-1.6-1.5zM8.9 13.2l7.7-6.2-6.4 7.1-.1 2.6-1.2-3-2.7-.9 2.7-1.6z" fill="currentColor"/>
+        </svg>
+      </span>
+      正在持续收集信息<span class="dots"></span>
+    </span>
+  </div>
+  <section class="timeline" id="timeline">
+    <div id="new-banner" class="new-banner hidden">
+      有新消息
+      <button type="button" id="jump-latest">查看最新</button>
+    </div>
+    <button type="button" id="back-to-top" class="scroll-fab hidden" aria-label="回到顶部">↑</button>
+    {% for item in items %}
+      <article class="card" data-id="{{ item.id }}">
+        <div class="meta">
+          <span class="badge accent">{{ item.source_id }}</span>
+          <span class="badge">{{ item.display_time or (item.published_at or item.fetched_at) }}</span>
+          <span class="badge sector">{{ item.sector }}</span>
+        </div>
+        <p class="single-text">
+          <a href="/item/{{ item.id }}">{{ item.display_title }}</a>
+        </p>
+        {% if item.display_summary %}
+          <p class="news-summary">{{ item.display_summary }}</p>
+        {% endif %}
+        {% if item.trade_card %}
+          <div class="thesis-strip compact" data-event-type="{{ item.trade_card.event_type or '' }}" data-trade-action="{{ item.trade_card.trade_action or '' }}" data-signal-score="{{ item.trade_card.signal_score or '' }}">
+            {% if item.trade_card.event_type %}<span class="tag">{{ item.trade_card.event_type }}</span>{% endif %}
+            {% if item.trade_card.trade_action %}<span class="tag">{{ item.trade_card.trade_action }}</span>{% endif %}
+            {% if item.trade_card.signal_score %}<span class="tag">信号 {{ item.trade_card.signal_score }}</span>{% endif %}
+          </div>
+        {% endif %}
+        {% if item.display_tags %}
+          <div class="display-tags">
+            {% for tag in item.display_tags %}
+              <span class="tag">{{ tag }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if item.metric_line %}
+          <p class="muted">{{ item.metric_line }}</p>
+        {% endif %}
+        <div class="actions">
+          <a class="link" href="{{ item.url }}" target="_blank" rel="noreferrer">原文链接</a>
+          <a class="link" href="/item/{{ item.id }}">查看原文</a>
+        </div>
+      </article>
+    {% else %}
+      <div class="empty">No items yet. Configure sources and run the fetcher.</div>
+    {% endfor %}
+  </section>
+
+  <script>
+    const statusEl = document.getElementById("fetch-status");
+
+    // Auto-refresh: append new items without jumping to top
+    const timelineEl = document.getElementById("timeline");
+    const itemNodes = Array.from(document.querySelectorAll(".card"));
+    const itemIds = new Set(itemNodes.map((c) => c.dataset.id));
+    let latestId = itemNodes.length ? Math.max(...itemNodes.map((c) => Number(c.dataset.id))) : 0;
+    const cacheKeyBase = (() => {
+      const params = new URLSearchParams(window.location.search);
+      const source = params.get("source") || "";
+      const sector = params.get("sector") || "";
+      const q = params.get("q") || "";
+      return `timeline_cache_v3_${source}_${sector}_${q}`;
+    })();
+    function cardHTML(item, isNew = false) {
+      const time = item.display_time || item.published_at || item.fetched_at || "";
+      const sector = item.sector || "";
+      const title = item.display_title || item.ai_title || item.title_zh || item.title || "";
+      const summary = item.display_summary || item.ai_view || item.summary_zh || item.summary || "";
+      const displayTags = Array.isArray(item.display_tags) ? item.display_tags : [];
+      const metricLine = item.metric_line || "";
+      const tradeCard = item.trade_card && typeof item.trade_card === "object" ? item.trade_card : {};
+      const thesisBits = [];
+      if (tradeCard.event_type) thesisBits.push(`<span class="tag">${tradeCard.event_type}</span>`);
+      if (tradeCard.trade_action) thesisBits.push(`<span class="tag">${tradeCard.trade_action}</span>`);
+      if (tradeCard.signal_score) thesisBits.push(`<span class="tag">信号 ${tradeCard.signal_score}</span>`);
+      return `
+        <article class="card${isNew ? " new-card" : ""}" data-id="${item.id}">
+          <div class="meta">
+            <span class="badge accent">${item.source_id || ""}</span>
+            <span class="badge">${time}</span>
+            <span class="badge sector">${sector}</span>
+          </div>
+          <p class="single-text"><a href="/item/${item.id}">${title}</a></p>
+          ${summary ? `<p class="news-summary">${summary}</p>` : ""}
+          ${thesisBits.length ? `<div class="thesis-strip compact" data-event-type="${tradeCard.event_type || ""}" data-trade-action="${tradeCard.trade_action || ""}" data-signal-score="${tradeCard.signal_score || ""}">${thesisBits.join("")}</div>` : ""}
+          ${displayTags.length ? `<div class="display-tags">${displayTags.map((tag) => `<span class="tag">${tag}</span>`).join("")}</div>` : ""}
+          ${metricLine ? `<p class="muted">${metricLine}</p>` : ""}
+        </article>
+      `.trim();
+    }
+
+    function readCache() {
+      if (!timelineEl || itemNodes.length) return;
+      const cached = localStorage.getItem(cacheKeyBase);
+      if (!cached) return;
+      try {
+        const parsed = JSON.parse(cached);
+        const items = Array.isArray(parsed.items) ? parsed.items : [];
+        if (!items.length) return;
+        timelineEl.innerHTML = items.map((item) => cardHTML(item)).join("");
+        items.forEach((item) => itemIds.add(String(item.id)));
+        latestId = Math.max(...items.map((i) => Number(i.id)));
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    function writeCache() {
+      if (!timelineEl) return;
+      const cards = Array.from(timelineEl.querySelectorAll(".card")).slice(0, 50);
+      const items = cards.map((card) => {
+        const id = card.dataset.id;
+        const titleEl = card.querySelector(".single-text a");
+        const meta = card.querySelectorAll(".badge");
+        return {
+          id,
+          display_title: titleEl ? titleEl.textContent : "",
+          source_id: meta[0] ? meta[0].textContent : "",
+          display_time: meta[1] ? meta[1].textContent : "",
+          sector: meta[2] ? meta[2].textContent : "",
+          display_summary: card.querySelector(".news-summary") ? card.querySelector(".news-summary").textContent : "",
+          trade_card: (() => {
+            const thesis = card.querySelector(".thesis-strip");
+            return thesis ? {
+              event_type: thesis.dataset.eventType || "",
+              trade_action: thesis.dataset.tradeAction || "",
+              signal_score: thesis.dataset.signalScore || "",
+            } : {};
+          })(),
+          display_tags: Array.from(card.querySelectorAll(".display-tags .tag")).map((tag) => tag.textContent),
+          metric_line: card.querySelector(".muted") ? card.querySelector(".muted").textContent : "",
+        };
+      });
+      try {
+        localStorage.setItem(cacheKeyBase, JSON.stringify({ items, ts: Date.now() }));
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    async function pollNew() {
+      try {
+        const url = new URL("/api/items", window.location.origin);
+        const params = new URLSearchParams(window.location.search);
+        const source = params.get("source");
+        const sector = params.get("sector");
+        const q = params.get("q");
+        if (source) url.searchParams.set("source", source);
+        if (sector) url.searchParams.set("sector", sector);
+        if (q) url.searchParams.set("q", q);
+        url.searchParams.set("limit", "50");
+        if (latestId > 0) {
+          url.searchParams.set("since_id", String(latestId));
+        }
+
+        const resp = await fetch(url.toString());
+        const data = await resp.json();
+        const items = data.items || [];
+        let added = 0;
+        const atTop = timelineEl.scrollTop < 20;
+        const beforeTop = timelineEl.scrollTop;
+        const beforeFirst = timelineEl.firstElementChild;
+        for (const item of items.reverse()) {
+          const id = String(item.id);
+          if (itemIds.has(id)) continue;
+          itemIds.add(id);
+          latestId = Math.max(latestId, Number(item.id));
+          timelineEl.insertAdjacentHTML("afterbegin", cardHTML(item, true));
+          added += 1;
+        }
+        const newCards = Array.from(timelineEl.querySelectorAll(".new-card"));
+        if (newCards.length) {
+          requestAnimationFrame(() => {
+            newCards.forEach((node) => node.classList.add("new-card-animate"));
+            setTimeout(() => {
+              newCards.forEach((node) => {
+                node.classList.remove("new-card", "new-card-animate");
+              });
+            }, 1200);
+          });
+        }
+        if (added > 0 && beforeFirst) {
+          const insertedHeight = beforeFirst.getBoundingClientRect().top - timelineEl.firstElementChild.getBoundingClientRect().top;
+          if (atTop) {
+            timelineEl.scrollTop = 0;
+            banner.classList.add("hidden");
+          } else {
+            timelineEl.scrollTop = beforeTop + Math.abs(insertedHeight);
+            banner.classList.remove("hidden");
+          }
+        }
+        if (added > 0) {
+          writeCache();
+        }
+        if (statusEl) {
+          statusEl.textContent = added > 0 ? `新增 ${added} 条` : "自动更新中";
+        }
+      } catch (err) {
+        // ignore silently
+      }
+    }
+
+    function startManagedInterval(fn, ms, runImmediately = true) {
+      if (runImmediately) fn();
+      return setInterval(() => {
+        if (document.hidden) return;
+        fn();
+      }, ms);
+    }
+
+    readCache();
+    startManagedInterval(pollNew, 15000, false);
+
+    // Background fetch to keep DB fresh (no manual button needed)
+    async function autoFetch() {
+      try {
+        await fetch("/api/fetch", { method: "POST" });
+      } catch (err) {
+        // ignore silently
+      }
+    }
+    // initial seed + periodic refresh
+    setTimeout(() => {
+      if (!document.hidden) autoFetch();
+    }, 2500);
+    startManagedInterval(autoFetch, 90000, false);
+
+    // New message banner logic
+    const banner = document.getElementById("new-banner");
+    const jumpBtn = document.getElementById("jump-latest");
+    const backToTopBtn = document.getElementById("back-to-top");
+    if (jumpBtn && timelineEl) {
+      jumpBtn.addEventListener("click", () => {
+        timelineEl.scrollTop = 0;
+        banner.classList.add("hidden");
+      });
+    }
+    if (backToTopBtn && timelineEl) {
+      const toggleBackToTop = () => {
+        const timelineMoved = timelineEl.scrollTop > 180;
+        const pageMoved = window.scrollY > 180;
+        backToTopBtn.classList.toggle("hidden", !(timelineMoved || pageMoved));
+      };
+      timelineEl.addEventListener("scroll", toggleBackToTop, { passive: true });
+      window.addEventListener("scroll", toggleBackToTop, { passive: true });
+      backToTopBtn.addEventListener("click", () => {
+        timelineEl.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      toggleBackToTop();
+    }
+
+    // Focused card scaling on scroll (Apple-like)
+    const timeline = document.querySelector(".timeline");
+    const cards = Array.from(document.querySelectorAll(".card"));
+    if (timeline && cards.length) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const visibles = entries.filter((e) => e.isIntersecting);
+          if (!visibles.length) return;
+          const top = visibles.sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0].target;
+          cards.forEach((c) => c.classList.toggle("focused", c === top));
+          timeline.classList.add("dim");
+        },
+        { root: null, threshold: [0.25, 0.5, 0.75] }
+      );
+      cards.forEach((c) => observer.observe(c));
+    }
+
+    // Hero subtle scale on scroll
+    const hero = document.querySelector(".hero");
+    window.addEventListener("scroll", () => {
+      if (!hero) return;
+      const y = Math.min(window.scrollY, 240);
+      const scale = 1 - y / 2400;
+      const opacity = 1 - y / 600;
+      hero.style.transform = `scale(${scale})`;
+      hero.style.opacity = `${Math.max(opacity, 0.6)}`;
+    });
+
+    // Save user filters (localStorage)
+    const filterForm = document.querySelector(".filters form");
+    const prefsKey = "news_filters_v1";
+    const filterScrollKey = "news_filter_scroll_v1";
+    try {
+      const savedScroll = sessionStorage.getItem(filterScrollKey);
+      if (savedScroll) {
+        const parsed = JSON.parse(savedScroll);
+        if (parsed && parsed.path === window.location.pathname) {
+          requestAnimationFrame(() => {
+            if (typeof parsed.windowY === "number") {
+              window.scrollTo(0, parsed.windowY);
+            }
+            if (timelineEl && typeof parsed.timelineTop === "number") {
+              timelineEl.scrollTop = parsed.timelineTop;
+            }
+            sessionStorage.removeItem(filterScrollKey);
+          });
+        } else {
+          sessionStorage.removeItem(filterScrollKey);
+        }
+      }
+    } catch (err) {
+      // ignore
+    }
+    if (filterForm) {
+      const params = new URLSearchParams(window.location.search);
+      const hasParams = params.get("source") || params.get("sector") || params.get("q");
+      if (!hasParams) {
+        const prefs = localStorage.getItem(prefsKey);
+        if (prefs && !sessionStorage.getItem("prefs_applied")) {
+          try {
+            const data = JSON.parse(prefs);
+            const qInput = filterForm.querySelector("input[name='q']");
+            const sourceSel = filterForm.querySelector("select[name='source']");
+            const sectorSel = filterForm.querySelector("select[name='sector']");
+            if (qInput) qInput.value = data.q || "";
+            if (sourceSel) sourceSel.value = data.source || "";
+            if (sectorSel) sectorSel.value = data.sector || "";
+            sessionStorage.setItem("prefs_applied", "1");
+            filterForm.submit();
+          } catch (err) {
+            // ignore
+          }
+        }
+      } else {
+        sessionStorage.removeItem("prefs_applied");
+      }
+
+      filterForm.addEventListener("submit", () => {
+        const qInput = filterForm.querySelector("input[name='q']");
+        const sourceSel = filterForm.querySelector("select[name='source']");
+        const sectorSel = filterForm.querySelector("select[name='sector']");
+        const data = {
+          q: qInput ? qInput.value.trim() : "",
+          source: sourceSel ? sourceSel.value : "",
+          sector: sectorSel ? sectorSel.value : "",
+        };
+        try {
+          localStorage.setItem(prefsKey, JSON.stringify(data));
+        } catch (err) {
+          // ignore
+        }
+        try {
+          sessionStorage.setItem(
+            filterScrollKey,
+            JSON.stringify({
+              path: window.location.pathname,
+              windowY: window.scrollY,
+              timelineTop: timelineEl ? timelineEl.scrollTop : 0,
+            })
+          );
+        } catch (err) {
+          // ignore
+        }
+      });
+    }
+
+  </script>
+{% endblock %}

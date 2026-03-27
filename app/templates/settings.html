@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-card glass">
+      <h1>数据来源</h1>
+      <p>管理当前接入的新闻源与抓取状态。这里展示的是系统已注册来源。</p>
+      <div class="hero-actions">
+        <span class="pill">配置文件：config/sources.yaml</span>
+      </div>
+    </div>
+    <div class="hero-card glass">
+      <div class="section-title">状态</div>
+      <p class="muted">已配置 {{ sources | length }} 个来源。</p>
+      <div class="section-title">提示</div>
+      <p>通过配置文件启用/禁用源，更新后刷新页面即可。</p>
+    </div>
+  </section>
+
+  <section class="hero-card glass">
+    <div class="section-title">来源清单</div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Enabled</th>
+          <th>Last Run</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sources %}
+          <tr>
+            <td>{{ s.id }}</td>
+            <td>{{ s.name }}</td>
+            <td>{{ s.type }}</td>
+            <td>{{ 'yes' if s.enabled else 'no' }}</td>
+            <td>{{ s.last_run_at or '-' }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5">No sources configured.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

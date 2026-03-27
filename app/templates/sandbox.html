@@ -1,0 +1,561 @@
+﻿{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-card glass">
+      <h1>沙盘模拟</h1>
+      <p>把快讯先压缩成主事件，再按重要性排序。这里更像你的事件研判台，而不只是主题分类器。</p>
+      <div class="hero-actions">
+        <button class="ghost" type="button" id="run-sandbox">生成沙盘</button>
+        <span class="muted cooldown-hint" id="cooldown-hint">60 秒后可再次生成</span>
+      </div>
+      <div class="learning-source-grid learning-source-grid-compact">
+        {% for source in learning_source_cards %}
+          <div class="learning-source-card tone-{{ source.tone }}">
+            <div class="learning-source-head">
+              <span class="learning-source-name">{{ source.label }}</span>
+              <span class="learning-source-freq">{{ source.freq }}</span>
+            </div>
+            <div class="learning-source-desc">{{ source.desc }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="sandbox-layout sandbox-layout-wide">
+    <div class="hero-card glass sandbox-stage sandbox-stage-large">
+      <div class="sandbox-graph" aria-hidden="true">
+        <svg viewBox="0 0 520 300" class="sandbox-graph-svg">
+          <g class="links">
+            <path d="M60 70 L180 40" />
+            <path d="M180 40 L320 80" />
+            <path d="M320 80 L420 140" />
+            <path d="M120 160 Q220 120 300 140" />
+            <path d="M90 220 L220 200" />
+            <path d="M220 200 L360 220" />
+            <path d="M150 90 L120 160" />
+            <path d="M300 140 L340 200" />
+            <path d="M260 60 L240 140" />
+            <path d="M420 140 L380 220" />
+          </g>
+          <g class="nodes">
+            <circle cx="60" cy="70" r="6" />
+            <circle cx="180" cy="40" r="6" />
+            <circle cx="260" cy="60" r="6" />
+            <circle cx="320" cy="80" r="6" />
+            <circle cx="420" cy="140" r="6" />
+            <circle cx="120" cy="160" r="6" />
+            <circle cx="300" cy="140" r="6" />
+            <circle cx="90" cy="220" r="6" />
+            <circle cx="220" cy="200" r="6" />
+            <circle cx="360" cy="220" r="6" />
+          </g>
+        </svg>
+      </div>
+      <div class="section-title">沙盘入口</div>
+      <p class="muted">系统会先锁定主事件，再把主题、板块、标的和影响路径编织成一张关系网。</p>
+      <div class="sandbox-bin is-idle" id="sandbox-bin">
+        <svg class="sandbox-network" id="sandbox-network" viewBox="0 0 720 300" aria-label="sandbox network"></svg>
+        <div class="sandbox-label">SANDBOX</div>
+        <div class="sandbox-network-meta" id="sandbox-network-meta">
+          <span class="badge accent">等待生成</span>
+          <span class="badge">节点网络</span>
+        </div>
+      </div>
+      <div class="sandbox-status hidden" id="sandbox-status">等待推演</div>
+      {% set strongest = (memory_rows | sort(attribute='count', reverse=True) | first) if memory_rows else none %}
+      <div class="sandbox-strongest hidden" id="strongest-keyword-wrap">
+        <div class="strongest-arena" id="strongest-arena" aria-hidden="true"></div>
+        <span class="chip strongest-chip" id="strongest-keyword">{% if strongest %}{{ strongest.theme }}{% else %}等待生成{% endif %}</span>
+        <span class="chip" id="strongest-keyword-count">{% if strongest %}热度 {{ strongest.count }}{% else %}热度 --{% endif %}</span>
+        <p class="muted" id="strongest-keyword-meta">这里显示当前网络的中心事件和最强关联主题。</p>
+      </div>
+    </div>
+
+    <div class="hero-card glass keywords-panel">
+      <div class="section-title">辅助主题池</div>
+      <p class="muted">保留主题聚类，作为主事件排序的辅助观察层。</p>
+      <div class="keywords-grid" id="keywords-grid">
+        {% if memory_rows %}
+          {% for row in memory_rows %}
+            <div class="keyword-item">
+              <div class="keyword-title">{{ row.theme }}</div>
+              <div class="keyword-count">{{ row.count }} 条</div>
+              <div class="keyword-samples">{{ row.sample_titles }}</div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty">暂无主题聚类，请先生成沙盘。</div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section class="hero-card glass hidden" id="sandbox-event-section">
+    <div class="section-title">重要事件排序</div>
+    <p class="muted">把主题热度、影响方向和交易窗口压缩成一张更适合盯盘的优先级列表。</p>
+    <div class="sandbox-event-board" id="sandbox-event-board">
+      {% if event_board %}
+        {% for row in event_board %}
+          <article class="sandbox-event-card">
+            <div class="sandbox-event-rank">#{{ row.rank }}</div>
+            <div class="sandbox-event-main">
+              <div class="sandbox-event-head">
+                <h3>{{ row.title }}</h3>
+                <div class="sandbox-event-badges">
+                  <span class="badge accent">分数 {{ row.score }}</span>
+                  <span class="badge">{{ row.impact }}</span>
+                  <span class="badge sector">{{ row.horizon }}</span>
+                </div>
+              </div>
+              <p class="sandbox-event-summary">{{ row.summary }}</p>
+              {% if row.support %}
+                <p class="muted">{{ row.support }}</p>
+              {% endif %}
+              <div class="sandbox-event-meta">
+                <span><strong>主题：</strong>{{ row.theme_label }}</span>
+                <span><strong>热度：</strong>{{ row.heat }}</span>
+                <span><strong>板块：</strong>{{ row.sectors | join(' / ') if row.sectors else '--' }}</span>
+                <span><strong>标的：</strong>{{ row.tickers | join(' / ') if row.tickers else '--' }}</span>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      {% else %}
+        <div class="empty">暂无沙盘事件，请先生成沙盘。</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <script>
+    const initialMemoryRows = {{ memory_rows | tojson }};
+    const initialEventBoard = {{ event_board | tojson }};
+    const runBtn = document.getElementById("run-sandbox");
+    const keywordsGrid = document.getElementById("keywords-grid");
+    const sandboxEventBoard = document.getElementById("sandbox-event-board");
+    const sandboxEventSection = document.getElementById("sandbox-event-section");
+    const sandboxBin = document.getElementById("sandbox-bin");
+    const sandboxNetwork = document.getElementById("sandbox-network");
+    const sandboxNetworkMeta = document.getElementById("sandbox-network-meta");
+    const sandboxStageEl = document.querySelector(".sandbox-stage");
+    const sandboxStatus = document.getElementById("sandbox-status");
+    const cooldownHint = document.getElementById("cooldown-hint");
+    const strongestKeywordEl = document.getElementById("strongest-keyword");
+    const strongestKeywordCountEl = document.getElementById("strongest-keyword-count");
+    const strongestKeywordMetaEl = document.getElementById("strongest-keyword-meta");
+    const strongestArenaEl = document.getElementById("strongest-arena");
+    const strongestWrapEl = document.getElementById("strongest-keyword-wrap");
+    let cooldownTimer = null;
+    const COOLDOWN_SECONDS = 60;
+    const COOLDOWN_KEY = "sandboxCooldownUntil";
+
+    function startCooldown(secondsLeft) {
+      if (!runBtn) return;
+      runBtn.disabled = true;
+      runBtn.classList.add("btn-disabled");
+      let remaining = secondsLeft;
+      if (cooldownHint) cooldownHint.textContent = `${remaining} 秒后可再次生成`;
+      if (cooldownTimer) clearInterval(cooldownTimer);
+      cooldownTimer = setInterval(() => {
+        remaining -= 1;
+        if (cooldownHint) cooldownHint.textContent = `${remaining} 秒后可再次生成`;
+        if (remaining <= 0) {
+          clearInterval(cooldownTimer);
+          cooldownTimer = null;
+          runBtn.disabled = false;
+          runBtn.classList.remove("btn-disabled");
+          if (cooldownHint) cooldownHint.textContent = "可再次生成";
+          localStorage.removeItem(COOLDOWN_KEY);
+        }
+      }, 1000);
+    }
+
+    function restoreCooldown() {
+      if (!runBtn) return;
+      const untilRaw = localStorage.getItem(COOLDOWN_KEY);
+      if (!untilRaw) return;
+      const until = Number(untilRaw);
+      if (!Number.isFinite(until)) return;
+      const now = Date.now();
+      if (until <= now) {
+        localStorage.removeItem(COOLDOWN_KEY);
+        return;
+      }
+      const secondsLeft = Math.ceil((until - now) / 1000);
+      startCooldown(secondsLeft);
+    }
+
+    function renderKeywords(rows) {
+      keywordsGrid.innerHTML = "";
+      if (!rows.length) {
+        keywordsGrid.innerHTML = '<div class="empty">暂无主题聚类。</div>';
+        return;
+      }
+      rows.forEach((row) => {
+        const card = document.createElement("div");
+        card.className = "keyword-item";
+        card.innerHTML = `
+          <div class="keyword-title">${row.theme || ""}</div>
+          <div class="keyword-count">${row.count || 0} 条</div>
+          <div class="keyword-samples">${row.sample_titles || ""}</div>
+        `;
+        keywordsGrid.appendChild(card);
+      });
+    }
+
+    function buildKeywordOrbit(rows, eventBoard, limit = 36) {
+      const seen = new Map();
+      const blocked = new Set(["taiwan", "台湾"]);
+      const add = (label, weight, theme = "") => {
+        const clean = String(label || "").trim().slice(0, 18);
+        if (!clean || clean.length < 2) return;
+        const key = clean.toLowerCase();
+        if (blocked.has(key) || blocked.has(clean)) return;
+        if (!seen.has(key) || seen.get(key).weight < weight) {
+          seen.set(key, { label: clean, weight, theme: theme || clean });
+        }
+      };
+
+      (eventBoard || []).forEach((row, rowIdx) => {
+        add(row.title, 24 - rowIdx, row.theme || row.theme_label || "");
+        add(row.theme_label, 20 - rowIdx, row.theme || row.theme_label || "");
+        add(row.impact, 16 - rowIdx, row.theme || row.theme_label || "");
+        add(row.horizon, 14 - rowIdx, row.theme || row.theme_label || "");
+        (row.sectors || []).forEach((sector, idx) => add(sector, 18 - idx - rowIdx, row.theme || row.theme_label || ""));
+        (row.tickers || []).forEach((ticker, idx) => add(ticker, 17 - idx - rowIdx, row.theme || row.theme_label || ""));
+      });
+
+      rows.forEach((row, rowIdx) => {
+        const weight = Math.max(1, Number(row.count || 1));
+        const theme = String(row.theme || "").trim();
+        if (theme) add(theme, weight + 8 - rowIdx, theme);
+      });
+      return Array.from(seen.values())
+        .sort((a, b) => (b.weight || 0) - (a.weight || 0))
+        .slice(0, limit);
+    }
+
+    function buildNetworkData(rows, eventBoard) {
+      const board = Array.isArray(eventBoard) ? eventBoard : [];
+      const memory = Array.isArray(rows) ? rows : [];
+      const lead = board[0] || {};
+      const centerLabel = String(lead.title || lead.theme_label || memory[0]?.theme || "主事件").trim();
+      const centerScore = Number(lead.score || memory[0]?.count || 0);
+      const center = {
+        id: "center",
+        label: centerLabel.slice(0, 20),
+        type: "center",
+        x: 360,
+        y: 148,
+        meta: lead.summary || lead.support || "等待生成主事件",
+      };
+      const rawNodes = [];
+      memory.slice(0, 4).forEach((row, idx) => {
+        rawNodes.push({
+          id: `theme-${idx}`,
+          label: String(row.theme || `主题${idx + 1}`).slice(0, 14),
+          type: "theme",
+          strength: Number(row.count || 0),
+          meta: `${row.count || 0} 条主题记忆`,
+        });
+      });
+      (lead.sectors || []).slice(0, 3).forEach((sector, idx) => {
+        rawNodes.push({
+          id: `sector-${idx}`,
+          label: String(sector).slice(0, 14),
+          type: "sector",
+          strength: Math.max(1, centerScore - idx),
+          meta: "受影响板块",
+        });
+      });
+      (lead.tickers || []).slice(0, 3).forEach((ticker, idx) => {
+        rawNodes.push({
+          id: `ticker-${idx}`,
+          label: String(ticker).slice(0, 12),
+          type: "ticker",
+          strength: Math.max(1, centerScore - idx),
+          meta: "关联标的",
+        });
+      });
+      [
+        lead.impact ? { label: lead.impact, type: "impact", meta: "影响方向" } : null,
+        lead.horizon ? { label: lead.horizon, type: "window", meta: "交易窗口" } : null,
+        memory[1]?.theme ? { label: memory[1].theme, type: "theme", meta: `${memory[1].count || 0} 条主题记忆` } : null,
+      ].filter(Boolean).forEach((item, idx) => {
+        rawNodes.push({
+          id: `meta-${idx}`,
+          label: String(item.label).slice(0, 14),
+          type: item.type,
+          strength: Math.max(1, centerScore - idx),
+          meta: item.meta,
+        });
+      });
+      const nodes = rawNodes.slice(0, 12).map((node, idx, list) => {
+        const angle = (-Math.PI / 2) + (idx / Math.max(list.length, 1)) * Math.PI * 2;
+        const radius = idx % 2 === 0 ? 118 : 152;
+        return {
+          ...node,
+          x: 360 + Math.cos(angle) * radius,
+          y: 148 + Math.sin(angle) * (radius * 0.72),
+          angle,
+        };
+      });
+      const links = nodes.map((node, idx) => ({
+        id: `link-${idx}`,
+        from: center,
+        to: node,
+          label: node.meta,
+        }));
+      const orbitBase = buildKeywordOrbit(memory, board, 40);
+      const perimeter = [];
+      const topCount = Math.ceil(orbitBase.length * 0.28);
+      const rightCount = Math.ceil(orbitBase.length * 0.22);
+      const bottomCount = Math.ceil(orbitBase.length * 0.28);
+      const leftCount = Math.max(0, orbitBase.length - topCount - rightCount - bottomCount);
+
+      function pushEdge(count, fn) {
+        for (let i = 0; i < count; i += 1) {
+          perimeter.push(fn(i, count));
+        }
+      }
+
+      pushEdge(topCount, (i, count) => ({
+        x: 110 + (i / Math.max(count - 1, 1)) * 500,
+        y: 34 + (i % 2) * 6,
+      }));
+      pushEdge(rightCount, (i, count) => ({
+        x: 666 - (i % 2) * 10,
+        y: 76 + (i / Math.max(count - 1, 1)) * 150,
+      }));
+      pushEdge(bottomCount, (i, count) => ({
+        x: 610 - (i / Math.max(count - 1, 1)) * 500,
+        y: 256 - (i % 2) * 6,
+      }));
+      pushEdge(leftCount, (i, count) => ({
+        x: 54 + (i % 2) * 10,
+        y: 224 - (i / Math.max(count - 1, 1)) * 150,
+      }));
+
+      const orbit = orbitBase.map((item, idx) => ({
+        ...item,
+        x: perimeter[idx]?.x ?? 360,
+        y: perimeter[idx]?.y ?? 148,
+      }));
+      return { center, nodes, links, orbit };
+    }
+
+    function svgEl(tag, attrs = {}) {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+      return el;
+    }
+
+    function renderSandboxNetwork(rows, eventBoard) {
+      if (!sandboxNetwork) return;
+      const { center, nodes, links, orbit } = buildNetworkData(rows, eventBoard);
+      sandboxNetwork.innerHTML = "";
+
+      const pulseOuter = svgEl("circle", {
+        cx: center.x,
+        cy: center.y,
+        r: "58",
+        class: "network-core-pulse outer",
+      });
+      sandboxNetwork.appendChild(pulseOuter);
+
+      const pulseInner = svgEl("circle", {
+        cx: center.x,
+        cy: center.y,
+        r: "46",
+        class: "network-core-pulse inner",
+      });
+      sandboxNetwork.appendChild(pulseInner);
+
+      const halo = svgEl("circle", {
+        cx: center.x,
+        cy: center.y,
+        r: "82",
+        class: "network-halo",
+      });
+      sandboxNetwork.appendChild(halo);
+
+      links.forEach((link, idx) => {
+        const pathD = `M ${link.from.x} ${link.from.y} Q ${(link.from.x + link.to.x) / 2} ${(link.from.y + link.to.y) / 2 - 26} ${link.to.x} ${link.to.y}`;
+        const path = svgEl("path", {
+          d: pathD,
+          class: "network-link",
+          style: `--delay:${idx * 0.08}s`,
+        });
+        sandboxNetwork.appendChild(path);
+        const glow = svgEl("path", {
+          d: pathD,
+          class: "network-link-glow",
+          style: `--delay:${0.2 + idx * 0.08}s`,
+        });
+        sandboxNetwork.appendChild(glow);
+      });
+
+      const centerGroup = svgEl("g", { class: "network-node center layer-core", style: "--delay:0.05s" });
+      centerGroup.appendChild(svgEl("circle", { cx: center.x, cy: center.y, r: "38" }));
+      const centerText = svgEl("text", { x: center.x, y: center.y - 4, class: "network-label center" });
+      centerText.textContent = center.label;
+      centerGroup.appendChild(centerText);
+      const centerMeta = svgEl("text", { x: center.x, y: center.y + 16, class: "network-sub" });
+      centerMeta.textContent = "主事件";
+      centerGroup.appendChild(centerMeta);
+      sandboxNetwork.appendChild(centerGroup);
+
+      nodes.forEach((node, idx) => {
+        const group = svgEl("g", { class: `network-node ${node.type || "theme"} layer-node`, style: `--delay:${0.18 + idx * 0.08}s` });
+        group.appendChild(svgEl("circle", { cx: node.x, cy: node.y, r: node.type === "ticker" ? "20" : "24" }));
+        const label = svgEl("text", { x: node.x, y: node.y + 4, class: "network-label" });
+        label.textContent = node.label;
+        group.appendChild(label);
+        sandboxNetwork.appendChild(group);
+      });
+
+      orbit.forEach((item, idx) => {
+        const group = svgEl("g", { class: "network-orbit-chip layer-orbit", style: `--delay:${0.42 + idx * 0.05}s` });
+        const rectWidth = Math.max(50, item.label.length * 9 + 18);
+        group.appendChild(svgEl("rect", {
+          x: item.x - rectWidth / 2,
+          y: item.y - 12,
+          width: rectWidth,
+          height: 24,
+          rx: 12,
+          ry: 12,
+        }));
+        const text = svgEl("text", { x: item.x, y: item.y + 1, class: "network-orbit-label" });
+        text.textContent = item.label;
+        group.appendChild(text);
+        sandboxNetwork.appendChild(group);
+      });
+
+      if (sandboxNetworkMeta) {
+        const lead = eventBoard?.[0];
+        sandboxNetworkMeta.innerHTML = `
+          <span class="badge accent">${lead?.impact || "主事件"}</span>
+          <span class="badge">${lead?.horizon || "节点网络"}</span>
+          <span class="badge sector">${nodes.length} 个关联节点</span>
+          <span class="badge">${orbit.length} 个关键词</span>
+        `;
+      }
+
+      sandboxBin?.classList.add("network-live");
+      requestAnimationFrame(() => sandboxBin?.classList.add("network-animate"));
+    }
+
+    function renderEventBoard(rows) {
+      sandboxEventBoard.innerHTML = "";
+      if (!rows.length) {
+        sandboxEventBoard.innerHTML = '<div class="empty">暂无沙盘事件。</div>';
+        return;
+      }
+      rows.forEach((row) => {
+        const card = document.createElement("article");
+        card.className = "sandbox-event-card";
+        const sectors = Array.isArray(row.sectors) ? row.sectors.join(" / ") : (row.sectors || "--");
+        const tickers = Array.isArray(row.tickers) ? row.tickers.join(" / ") : (row.tickers || "--");
+        card.innerHTML = `
+          <div class="sandbox-event-rank">#${row.rank || ""}</div>
+          <div class="sandbox-event-main">
+            <div class="sandbox-event-head">
+              <h3>${row.title || ""}</h3>
+              <div class="sandbox-event-badges">
+                <span class="badge accent">分数 ${row.score || 0}</span>
+                <span class="badge">${row.impact || ""}</span>
+                <span class="badge sector">${row.horizon || ""}</span>
+              </div>
+            </div>
+            <p class="sandbox-event-summary">${row.summary || ""}</p>
+            ${row.support ? `<p class="muted">${row.support}</p>` : ""}
+            <div class="sandbox-event-meta">
+              <span><strong>主题：</strong>${row.theme_label || row.theme || ""}</span>
+              <span><strong>热度：</strong>${row.heat || 0}</span>
+              <span><strong>板块：</strong>${sectors}</span>
+              <span><strong>标的：</strong>${tickers}</span>
+            </div>
+          </div>
+        `;
+        sandboxEventBoard.appendChild(card);
+      });
+    }
+
+    function renderStrongest(rows) {
+      if (!rows.length) return;
+      const sorted = [...rows].sort((a, b) => Number(b.count || 0) - Number(a.count || 0));
+      const strongest = sorted[0];
+      if (strongestKeywordEl) strongestKeywordEl.textContent = strongest.theme || "--";
+      if (strongestKeywordCountEl) strongestKeywordCountEl.textContent = `热度 ${strongest.count || 0}`;
+      if (strongestKeywordMetaEl) strongestKeywordMetaEl.textContent = "当前最热主题会成为节点网络里最先被追踪的线索。";
+    }
+
+    function revealSandbox(rows, eventBoard) {
+      renderKeywords(rows);
+      renderEventBoard(eventBoard);
+      renderStrongest(rows);
+      renderSandboxNetwork(rows, eventBoard);
+      sandboxBin?.classList.remove("is-idle");
+      sandboxEventSection?.classList.toggle("hidden", !eventBoard.length);
+      strongestWrapEl?.classList.remove("hidden");
+      sandboxStatus?.classList.add("hidden");
+      focusSandboxStage();
+    }
+
+    function focusSandboxStage() {
+      const anchor = sandboxBin?.closest(".sandbox-stage");
+      if (!anchor) return;
+      window.requestAnimationFrame(() => {
+        anchor.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
+    function playSandboxFx() {
+      if (sandboxBin) {
+        sandboxBin.classList.remove("stirring", "processing", "active", "network-animate");
+        void sandboxBin.offsetWidth;
+        sandboxBin.classList.add("stirring");
+        setTimeout(() => sandboxBin.classList.add("processing"), 260);
+        setTimeout(() => sandboxBin.classList.add("active"), 720);
+        setTimeout(() => sandboxBin.classList.remove("stirring", "processing"), 1200);
+      }
+      if (strongestArenaEl) {
+        strongestArenaEl.classList.remove("active", "impact");
+        void strongestArenaEl.offsetWidth;
+        strongestArenaEl.classList.add("active");
+        setTimeout(() => strongestArenaEl.classList.add("impact"), 420);
+        setTimeout(() => strongestArenaEl.classList.remove("impact"), 980);
+      }
+      setTimeout(() => sandboxBin?.classList.add("network-animate"), 180);
+    }
+
+    async function runSandbox() {
+      if (!runBtn || runBtn.disabled) return;
+      runBtn.disabled = true;
+      runBtn.classList.add("btn-disabled");
+      if (cooldownHint) cooldownHint.textContent = "正在生成沙盘…";
+      try {
+        const resp = await fetch("/api/sandbox/run", { method: "POST" });
+        const data = await resp.json();
+        const memory = Array.isArray(data.memory) ? data.memory : [];
+        const eventBoard = Array.isArray(data.event_board) ? data.event_board : [];
+        revealSandbox(memory, []);
+        playSandboxFx();
+        revealSandbox(memory, eventBoard);
+        const until = Date.now() + COOLDOWN_SECONDS * 1000;
+        localStorage.setItem(COOLDOWN_KEY, String(until));
+        startCooldown(COOLDOWN_SECONDS);
+      } catch (err) {
+        if (cooldownHint) cooldownHint.textContent = "生成失败，请稍后重试";
+        runBtn.disabled = false;
+        runBtn.classList.remove("btn-disabled");
+      }
+    }
+
+    renderKeywords(initialMemoryRows || []);
+    renderEventBoard([]);
+    renderSandboxNetwork(initialMemoryRows || [], []);
+    restoreCooldown();
+    if (runBtn) runBtn.addEventListener("click", runSandbox);
+  </script>
+{% endblock %}

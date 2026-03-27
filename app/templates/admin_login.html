@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="hero-card glass reveal" style="max-width:560px;margin:24px auto;">
+    <h1>管理员登录</h1>
+    <p class="hero-desc">仅管理员可见手动触发按钮（推演/总推断/选股/复盘）。</p>
+    {% if not has_admin_token %}
+      <p class="muted">当前未配置 <code>ADMIN_TOKEN</code>，请先在 .env 中设置。</p>
+    {% endif %}
+    {% if error %}
+      <p style="color:#d13a3a;font-size:13px;">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="/admin/login" style="display:grid;gap:10px;margin-top:14px;">
+      <input type="password" name="token" placeholder="输入管理员口令" required style="padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--panel);color:var(--text);" />
+      <input type="hidden" name="next" value="/simulator" />
+      <button class="ghost" type="submit">登录并前往模拟页</button>
+    </form>
+    <form method="post" action="/admin/logout" style="margin-top:10px;">
+      <button class="ghost" type="submit">退出管理员</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
