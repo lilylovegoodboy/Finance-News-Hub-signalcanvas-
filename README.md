@@ -1,54 +1,79 @@
 # Finance News Hub SignalCanvas UI
 
-Open-source UI shell for an event-driven market research workspace.
+一个面向事件驱动投研场景的前端展示与产品壳开源项目。
 
-This repository mainly includes:
+这个仓库主要开放：
 
-- frontend pages
-- shared UI
-- layout and interactions
-- user manual pages
-- base product structure
+- 前端页面
+- 通用 UI
+- 页面布局与交互
+- 用户使用手册相关页面
+- 基础产品结构
 
-It shows how a workspace built around:
+它展示了一个围绕以下模块组织起来的工作台：
 
-- event thesis
-- lead-theme observation
-- simulated human investing
-- retail heat
+- 快讯首页
+- 推演引擎
+- 模拟人类投资
+- 散户热度
+- 用户手册
 
-can be organized and presented.
+---
 
-## Scope
+## 项目定位
 
-This is **not** the full production trading system and **not** a full strategy open-source repo.
+这不是完整的生产版交易系统，也不是策略全开源仓库。
 
-This public repo focuses on:
+当前开源内容聚焦在：
 
-- page design
-- information architecture
-- UI components and interactions
-- user manual and product explanation
-- presentation-layer organization
+- 产品页面设计
+- 信息架构
+- UI 组件与交互
+- 使用手册与用户教育层
+- 展示层的数据组织方式
 
-It does **not** include:
+未包含内容：
 
-- core strategy logic
-- ranking and scoring rules
-- lead-theme inference rules
-- simulator execution engine details
-- production secrets or private data sources
+- 核心策略逻辑
+- 关键打分与权重
+- 主线推演核心规则
+- 模拟人类投资执行引擎细节
+- 生产环境密钥与私有数据源
 
-## Included modules
+---
 
-- news home
-- thesis engine page
-- simulator page
-- retail heat page
-- user manual
-- dark mode, navigation, card system, responsive layout
+## 当前包含的模块
 
-## Structure
+- `快讯首页`
+  - 首页入口、导航、卡片式信息组织
+- `推演引擎`
+  - 推演结论、影响地图、因果链、风险判断的展示方式
+- `模拟人类投资`
+  - 执行路径、候选池、收益展示、模拟交易成绩区
+- `散户热度`
+  - 股吧热度、板块总热度、时间轴、散户指数等展示层结构
+- `用户手册`
+  - 用户如何理解系统、如何使用页面、如何阅读模块
+
+---
+
+## 用户手册相关
+
+这个开源仓库特别保留了“用户手册”相关页面和结构，方便参考：
+
+- 如何为复杂系统写用户说明
+- 如何把产品能力解释给普通用户
+- 如何组织：
+  - 首页怎么读
+  - 推演引擎怎么看
+  - 模拟投资怎么看
+  - 散户热度怎么看
+
+如果你也在做高信息密度产品，这部分会比较有参考价值。
+
+---
+
+## 项目结构
 
 ```text
 app/
@@ -65,15 +90,55 @@ mock/
 screenshots/
 ```
 
-## Design principles
+---
 
-- layer complex information before showing details
-- let users see the conclusion before the evidence
-- embed AI explanations into modules instead of floating chat only
-- open the product shell, keep the strategy core private
+## 设计原则
 
-## Disclaimer
+- 复杂信息先分层，再展示
+- 用户先看结论，再看证据
+- AI 解释应嵌入模块，而不是只做独立聊天框
+- 页面可以高信息密度，但不能高理解门槛
+- 产品壳开放，策略芯保留
 
-This open-source part is for product design, learning, and interface reference only.
+---
 
-It is **not** investment advice. Markets are risky. Make decisions carefully.
+## 开源边界
+
+本仓库开放的是“产品展示层”，不是“策略核心”。
+
+适合查看和参考的部分：
+
+- 页面模板
+- 通用样式
+- 导航与卡片系统
+- 响应式布局
+- 用户手册与说明文案
+
+暂不开放的部分：
+
+- 核心策略实现
+- 候选排序与打分引擎
+- 主线竞争与执行逻辑
+- 私有 prompt / 参数 / 权重
+- 生产数据链路与密钥
+
+---
+
+## 适合谁看
+
+这个仓库适合：
+
+- 想做金融产品前端的人
+- 想研究信息密度页面设计的人
+- 想搭建事件驱动投研工作台的人
+- 想参考“用户手册如何写”的人
+- 对 AI + 投研产品交互感兴趣的人
+
+---
+
+## 免责声明
+
+本仓库仅用于产品设计、学习交流与界面展示参考。
+
+不构成任何投资建议。  
+市场有风险，决策需谨慎。
