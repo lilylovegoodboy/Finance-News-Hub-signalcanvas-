@@ -17,6 +17,17 @@
 - 模拟人类投资
 - 散户热度
 - 用户手册
+<img width="1275" height="618" alt="image" src="https://github.com/user-attachments/assets/03b7df1e-608e-4247-95fe-eacfa8a4a85b" />
+<img width="1273" height="610" alt="image" src="https://github.com/user-attachments/assets/dfac21a7-f625-4c5f-b270-51681afb2559" />
+<img width="1273" height="617" alt="image" src="https://github.com/user-attachments/assets/9d730dfb-651e-406d-bde3-c81e50343d0c" />
+<img width="1271" height="610" alt="image" src="https://github.com/user-attachments/assets/20eb5f6a-9b15-48c0-88dd-315632841d36" />
+<img width="1271" height="605" alt="image" src="https://github.com/user-attachments/assets/3b0ad6b9-ead7-4d8f-a02e-d093d2065e85" />
+<img width="1273" height="614" alt="image" src="https://github.com/user-attachments/assets/a8820293-ae5a-4a2f-a2ae-414f328d9d00" />
+<img width="1277" height="613" alt="image" src="https://github.com/user-attachments/assets/4494ebb7-9e8c-46ea-88e1-ce49289b8d8c" />
+
+
+
+
 
 ---
 
